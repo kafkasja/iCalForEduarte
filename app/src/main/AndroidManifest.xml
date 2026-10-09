@@ -31,6 +31,18 @@
             android:exported="false"
             android:label="@string/login_title" />
 
+        <!-- Opened by tapping the app icon twice quickly -->
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+
+        <activity
+            android:name=".ui.SubjectsActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.SettingsActivity"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+
         <!-- "Ignore" button on the schedule changes notification -->
         <receiver
             android:name=".sync.IgnoreChangesReceiver"

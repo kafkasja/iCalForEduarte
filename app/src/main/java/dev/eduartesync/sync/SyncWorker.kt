@@ -11,15 +11,15 @@ import dev.eduartesync.calendar.CalendarWriter
 import dev.eduartesync.calendar.summarize
 import dev.eduartesync.source.EduarteSource
 import dev.eduartesync.source.SessionExpiredException
+import dev.eduartesync.settings.AppSettings
 import dev.eduartesync.source.mergeConsecutive
+import dev.eduartesync.subjects.SubjectStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 
 /**
  * One sync: read the schedule from Eduarte, update the calendar, tell the user what happened.
@@ -44,9 +44,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             return Result.success()
         }
 
-        // Today through Sunday of next week; days that already passed are never touched.
+        // From today up to the range picked in settings; days that already passed are never touched.
+        val settings = AppSettings(context)
         val from = LocalDate.now(Config.ZONE)
-        val to = from.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).plusWeeks(1)
+        val to = settings.range.lastDay(from)
 
         val lessons = try {
             mergeConsecutive(EduarteSource(context).fetch(from, to))
@@ -70,7 +71,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             return Result.failure()
         }
 
-        val changes = CalendarWriter(context).sync(lessons, from)
+        val subjects = SubjectStore(context)
+        subjects.addSeen(lessons.map { it.subject })
+        // Changes are only reported for days the previous sync already covered.
+        val reportUntil = settings.syncedUntil?.let { minOf(it, to) }
+        val changes = CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil)
+        settings.syncedUntil = to
+
         Notifier.clearProblem(context)
         Notifier.scheduleChanged(context, changes)
         Log.i(TAG, "Synced ${lessons.size} lessons: ${summarize(changes)}")
@@ -78,8 +85,15 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         return Result.success()
     }
 
-    /** Toast only for syncs started by tapping the app icon; background syncs stay silent. */
+    /**
+     * Saves the result for the settings page. Shows it as a toast only for syncs started by
+     * tapping the app icon; background syncs stay silent.
+     */
     private suspend fun report(message: String) {
+        AppSettings(applicationContext).apply {
+            lastSyncAt = System.currentTimeMillis()
+            lastSyncResult = message
+        }
         if (!manual) return
         withContext(Dispatchers.Main) {
             Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()

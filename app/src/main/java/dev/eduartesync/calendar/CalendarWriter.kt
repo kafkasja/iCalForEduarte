@@ -12,6 +12,7 @@ import android.provider.CalendarContract.Calendars
 import android.provider.CalendarContract.Events
 import dev.eduartesync.Config
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.subjects.SubjectStyle
 import java.time.LocalDate
 
 /**
@@ -22,15 +23,21 @@ class CalendarWriter(context: Context) {
     private val resolver = context.contentResolver
 
     /**
-     * Makes the calendar match [lessons] for everything starting on or after [from].
-     * Returns what changed, in readable form.
+     * Makes the calendar match [lessons] for everything starting on or after [from], using the
+     * subject [styles] from the Subjects page. Returns what changed in the schedule up to
+     * [reportUntil] in readable form; later days are new to the calendar, not changes.
      */
-    fun sync(lessons: List<Lesson>, from: LocalDate): List<ScheduleChange> {
+    fun sync(
+        lessons: List<Lesson>,
+        from: LocalDate,
+        styles: Map<String, SubjectStyle>,
+        reportUntil: LocalDate?,
+    ): List<ScheduleChange> {
         val calendarId = findOrCreateCalendar()
         val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
 
         val existing = queryEvents(calendarId, fromMillis)
-        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields() })
+        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields(styles[it.subject]) })
 
         val ops = ArrayList<ContentProviderOperation>()
         plan.deletes.forEach { rowId ->
@@ -50,8 +57,18 @@ class CalendarWriter(context: Context) {
                 .build()
         }
         if (ops.isNotEmpty()) resolver.applyBatch(CalendarContract.AUTHORITY, ops)
-        return describeChanges(existing, plan, Config.ZONE)
+
+        val window = if (reportUntil == null) LongRange.EMPTY
+        else fromMillis until reportUntil.plusDays(1).atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
+        return describeChanges(existing, plan, Config.ZONE, window)
     }
+
+    /** Deletes the app's calendar and everything in it. The next sync creates it again. */
+    fun deleteCalendar(): Int = resolver.delete(
+        asSyncAdapter(Calendars.CONTENT_URI),
+        "${Calendars.ACCOUNT_NAME} = ? AND ${Calendars.ACCOUNT_TYPE} = ?",
+        arrayOf(Config.ACCOUNT_NAME, CalendarContract.ACCOUNT_TYPE_LOCAL),
+    )
 
     /** Looked up by account each time (not stored), so "Clear storage" never duplicates it. */
     private fun findOrCreateCalendar(): Long {

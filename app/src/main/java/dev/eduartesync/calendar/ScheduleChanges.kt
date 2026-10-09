@@ -10,15 +10,21 @@ data class ScheduleChange(val kind: Kind, val text: String) {
     enum class Kind { ADDED, REMOVED, MOVED, CANCELLED, CHANGED }
 }
 
-private const val CANCELLED_PREFIX = "VERVALLEN – "
 private val DAY = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
 private val TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
 
 /**
  * Turns a [SyncPlan] into readable changes. Calendar housekeeping is left out: duplicates
- * being removed, events edited on the phone being restored, and color-only updates.
+ * being removed, events edited on the phone being restored, and color-only or style-only
+ * updates. Only lessons starting inside [window] (epoch millis) count, so days that are new
+ * to the calendar, or that dropped out of the sync range, aren't reported as changes.
  */
-fun describeChanges(existing: List<ExistingEvent>, plan: SyncPlan, zone: ZoneId): List<ScheduleChange> {
+fun describeChanges(
+    existing: List<ExistingEvent>,
+    plan: SyncPlan,
+    zone: ZoneId,
+    window: LongRange = Long.MIN_VALUE..Long.MAX_VALUE,
+): List<ScheduleChange> {
     val byRow = existing.associateBy { it.rowId }
     val deleted = plan.deletes.mapNotNull { byRow[it] }
     val keptKeys = existing.filter { it.rowId !in plan.deletes }.mapNotNull { it.key }.toSet()
@@ -28,9 +34,11 @@ fun describeChanges(existing: List<ExistingEvent>, plan: SyncPlan, zone: ZoneId)
     val removed = deleted
         .filter { !it.deleted && it.key != null && it.key !in keptKeys && it.key !in insertedKeys }
         .map { it.fields }
+        .filter { it.startMillis in window }
         .toMutableList()
     val restoredKeys = deleted.filter { it.key in insertedKeys }.mapNotNull { it.key }.toSet()
     val added = plan.inserts.filter { it.first !in restoredKeys }.map { it.second }
+        .filter { it.startMillis in window }
 
     val changes = mutableListOf<ScheduleChange>()
     fun day(f: EventFields) = DAY.format(Instant.ofEpochMilli(f.startMillis).atZone(zone))
@@ -59,6 +67,7 @@ fun describeChanges(existing: List<ExistingEvent>, plan: SyncPlan, zone: ZoneId)
     }
     for ((rowId, new) in plan.updates) {
         val old = byRow[rowId]?.fields ?: continue
+        if (old.startMillis !in window && new.startMillis !in window) continue
         val where = "${subject(new)} ${day(new)} ${time(new.startMillis)}"
         changes += when {
             new.title.startsWith(CANCELLED_PREFIX) && !old.title.startsWith(CANCELLED_PREFIX) ->

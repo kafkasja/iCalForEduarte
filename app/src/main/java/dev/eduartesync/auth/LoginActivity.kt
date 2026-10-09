@@ -40,7 +40,7 @@ class LoginActivity : Activity() {
         done = true
         CookieManager.getInstance().flush()
         SessionManager.setLoggedIn(this, true)
-        SyncScheduler.schedulePeriodic(this)
+        SyncScheduler.updatePeriodic(this)
         SyncScheduler.syncNow(this)
         Toast.makeText(this, "Logged in, syncing your schedule...", Toast.LENGTH_SHORT).show()
         finish()

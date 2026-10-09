@@ -2,6 +2,8 @@ package dev.eduartesync.auth
 
 import android.content.Context
 import android.net.Uri
+import android.webkit.CookieManager
+import android.webkit.WebStorage
 import dev.eduartesync.Config
 
 /**
@@ -24,6 +26,14 @@ object SessionManager {
     fun isPortalPage(url: String?): Boolean {
         val uri = url?.let(Uri::parse) ?: return false
         return uri.host == Config.PORTAL_HOST && !(uri.path ?: "").startsWith("/oauth-callback")
+    }
+
+    /** Removes the Eduarte and Microsoft login from this phone. */
+    fun logOut(context: Context) {
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        WebStorage.getInstance().deleteAllData()
+        setLoggedIn(context, false)
     }
 
     private fun prefs(context: Context) =

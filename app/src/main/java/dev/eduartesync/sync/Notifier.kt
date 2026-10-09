@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
@@ -75,6 +76,30 @@ object Notifier {
         return manager.getNotificationChannel(CHANNEL_CHANGES)?.importance == NotificationManager.IMPORTANCE_NONE
     }
 
+    /** Creating an existing channel never raises its importance, so a muted channel stays muted. */
+    fun ensureChannels(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_PROBLEMS, "Sync problems", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Login expired or the schedule could not be synced"
+            }
+        )
+        manager.createNotificationChannel(changesChannel(NotificationManager.IMPORTANCE_DEFAULT))
+    }
+
+    /** Whether schedule change notifications can show up at all. */
+    fun changesEnabled(context: Context): Boolean {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        return manager.areNotificationsEnabled() &&
+            manager.getNotificationChannel(CHANNEL_CHANGES)?.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    /** Android's own settings screen for the "Schedule changes" notifications. */
+    fun changesSettingsIntent(context: Context): Intent =
+        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_CHANGES)
+
     private fun changesChannel(importance: Int) =
         NotificationChannel(CHANNEL_CHANGES, "Schedule changes", importance).apply {
             description = "What changed in your schedule after a sync"
@@ -93,14 +118,8 @@ object Notifier {
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
 
-        // Creating an existing channel never raises its importance, so a muted channel stays muted.
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_PROBLEMS, "Sync problems", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Login expired or the schedule could not be synced"
-            }
-        )
-        manager.createNotificationChannel(changesChannel(NotificationManager.IMPORTANCE_DEFAULT))
+        ensureChannels(context)
 
         val pending = PendingIntent.getActivity(
             context, id, intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

@@ -1,6 +1,7 @@
 package dev.eduartesync.calendar
 
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.subjects.SubjectStyle
 
 /** The calendar fields we control for one event. */
 data class EventFields(
@@ -27,17 +28,26 @@ data class SyncPlan(
     val deletes: List<Long>,
 )
 
-fun Lesson.toFields() = EventFields(
-    title = if (cancelled) "VERVALLEN – $subject" else subject,
-    location = location.orEmpty(),
-    description = listOfNotNull(
-        teacher?.let { "Teacher: $it" },
-        group?.let { "Group: $it" },
-    ).joinToString("\n"),
-    startMillis = startMillis,
-    endMillis = endMillis,
-    color = SubjectColors.forSubject(subject),
-)
+/** How a lesson looks in the calendar. [style] is the user's customization from the Subjects page. */
+fun Lesson.toFields(style: SubjectStyle? = null): EventFields {
+    val name = listOfNotNull(
+        style?.emoji?.takeIf { it.isNotBlank() },
+        style?.displayName?.takeIf { it.isNotBlank() } ?: subject,
+    ).joinToString(" ")
+    return EventFields(
+        title = if (cancelled) "$CANCELLED_PREFIX$name" else name,
+        location = location.orEmpty(),
+        description = listOfNotNull(
+            teacher?.let { "Teacher: $it" },
+            group?.let { "Group: $it" },
+        ).joinToString("\n"),
+        startMillis = startMillis,
+        endMillis = endMillis,
+        color = style?.color ?: SubjectColors.forSubject(subject),
+    )
+}
+
+const val CANCELLED_PREFIX = "VERVALLEN – "
 
 /**
  * Works out what to change so the calendar matches [wanted] (lesson id -> fields).

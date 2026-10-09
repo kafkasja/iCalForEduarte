@@ -4,7 +4,8 @@ import kotlin.math.abs
 
 /** A fixed color per subject, the same on every sync and every phone. */
 object SubjectColors {
-    private val PALETTE = intArrayOf(
+    /** Also the choices on the Subjects page. */
+    val palette = listOf(
         0xFF1E88E5.toInt(), // blue
         0xFF43A047.toInt(), // green
         0xFFE53935.toInt(), // red
@@ -20,5 +21,5 @@ object SubjectColors {
     )
 
     fun forSubject(subject: String): Int =
-        PALETTE[abs(subject.trim().lowercase().hashCode() % PALETTE.size)]
+        palette[abs(subject.trim().lowercase().hashCode() % palette.size)]
 }

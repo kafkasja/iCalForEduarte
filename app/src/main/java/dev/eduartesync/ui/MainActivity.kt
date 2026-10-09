@@ -10,10 +10,12 @@ import android.widget.Toast
 import dev.eduartesync.auth.LoginActivity
 import dev.eduartesync.auth.SessionManager
 import dev.eduartesync.calendar.CalendarWriter
+import dev.eduartesync.settings.AppSettings
 import dev.eduartesync.sync.SyncScheduler
 
 /**
- * Launcher entry with no UI: first time -> login; every time after -> sync now, then close.
+ * Launcher entry with no UI: first time -> login; after that one tap syncs and closes,
+ * and two quick taps open the settings.
  */
 class MainActivity : Activity() {
 
@@ -36,12 +38,20 @@ class MainActivity : Activity() {
     }
 
     private fun proceed() {
-        if (!SessionManager.isLoggedIn(this)) {
-            startActivity(Intent(this, LoginActivity::class.java))
-        } else {
-            SyncScheduler.schedulePeriodic(this)
-            SyncScheduler.syncNow(this)
-            Toast.makeText(this, "Syncing schedule...", Toast.LENGTH_SHORT).show()
+        val settings = AppSettings(this)
+        val now = System.currentTimeMillis()
+        val doubleTap = now - settings.lastLaunchAt < DOUBLE_TAP_MS
+        // Reset after a double tap, so a third tap doesn't count as another one.
+        settings.lastLaunchAt = if (doubleTap) 0 else now
+
+        when {
+            !SessionManager.isLoggedIn(this) -> startActivity(Intent(this, LoginActivity::class.java))
+            doubleTap -> startActivity(Intent(this, SettingsActivity::class.java))
+            else -> {
+                SyncScheduler.updatePeriodic(this)
+                SyncScheduler.syncNow(this)
+                Toast.makeText(this, "Syncing schedule... (tap twice quickly for settings)", Toast.LENGTH_SHORT).show()
+            }
         }
         finish()
     }
@@ -54,5 +64,6 @@ class MainActivity : Activity() {
 
     private companion object {
         const val REQUEST_PERMISSIONS = 1
+        const val DOUBLE_TAP_MS = 1500L
     }
 }

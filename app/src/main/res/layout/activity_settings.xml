@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="24dp">
+
+        <TextView style="@style/SectionHeader" android:text="Status" />
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/syncNow"
+            style="@style/RowButton"
+            android:text="Sync now" />
+
+        <TextView style="@style/SectionHeader" android:text="Sync" />
+        <Switch
+            android:id="@+id/autoSync"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Automatic sync every 12 hours" />
+        <TextView
+            style="@style/Hint"
+            android:text="When off, the schedule only syncs when you tap the app icon." />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:text="How far ahead to sync" />
+        <RadioGroup
+            android:id="@+id/range"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <TextView style="@style/SectionHeader" android:text="Notifications" />
+        <TextView
+            android:id="@+id/notificationStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/notificationSettings"
+            style="@style/RowButton"
+            android:text="Change in Android settings" />
+
+        <TextView style="@style/SectionHeader" android:text="Calendar" />
+        <Button
+            android:id="@+id/clearCalendar"
+            style="@style/RowButton"
+            android:text="Clear calendar" />
+        <TextView
+            style="@style/Hint"
+            android:text="Removes everything this app put in your calendar. Sync again to get it back." />
+
+        <TextView style="@style/SectionHeader" android:text="Account" />
+        <Button
+            android:id="@+id/logOut"
+            style="@style/RowButton"
+            android:text="Log out / switch account" />
+        <TextView
+            style="@style/Hint"
+            android:text="Removes your Eduarte login from this phone. Your password was never stored by this app." />
+
+        <TextView style="@style/SectionHeader" android:text="Beta" />
+        <Button
+            android:id="@+id/subjects"
+            style="@style/RowButton"
+            android:text="Subjects" />
+        <TextView
+            style="@style/Hint"
+            android:text="Give each subject its own name, emoji and color in your calendar." />
+
+        <TextView
+            android:id="@+id/version"
+            style="@style/Hint"
+            android:paddingTop="24dp" />
+    </LinearLayout>
+</ScrollView>

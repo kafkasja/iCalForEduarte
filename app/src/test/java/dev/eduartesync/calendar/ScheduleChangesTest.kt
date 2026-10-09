@@ -77,6 +77,29 @@ class ScheduleChangesTest {
     }
 
     @Test
+    fun `restyling a subject is not a schedule change`() {
+        val result = changes(
+            listOf(ExistingEvent(1, "a", fields("PDO-Expert", 12, 8, color = 1))),
+            mapOf("a" to fields("💻 PDO", 12, 8, color = 2)),
+        )
+        assertEquals(emptyList<ScheduleChange>(), result)
+    }
+
+    @Test
+    fun `days outside the window are not reported`() {
+        val existing = listOf(ExistingEvent(1, "old", fields("NOSQL", 12, 10)))
+        val wanted = mapOf("new" to fields("Python", 20, 9))
+        val plan = planChanges(existing, wanted)
+        // Window covers only the 12th: the removal there counts, the new lesson on the 20th doesn't.
+        val window = at(12, 0) until at(13, 0)
+        assertEquals(
+            listOf(ScheduleChange(Kind.REMOVED, "NOSQL Mon 12 Oct 10:00-11:00")),
+            describeChanges(existing, plan, zone, window),
+        )
+        assertEquals(emptyList<ScheduleChange>(), describeChanges(existing, plan, zone, LongRange.EMPTY))
+    }
+
+    @Test
     fun `summary counts each kind`() {
         val list = listOf(
             ScheduleChange(Kind.ADDED, ""), ScheduleChange(Kind.ADDED, ""), ScheduleChange(Kind.MOVED, ""),

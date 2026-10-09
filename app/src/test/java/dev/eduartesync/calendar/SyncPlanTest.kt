@@ -1,6 +1,7 @@
 package dev.eduartesync.calendar
 
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.subjects.SubjectStyle
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -20,6 +21,17 @@ class SyncPlanTest {
         val b = Lesson("2", "PDO-Expert", 0, 10, null, cancelled = true).toFields()
         assertEquals(a.color, b.color)
         assertEquals(a.color, SubjectColors.forSubject("PDO-Expert"))
+    }
+
+    @Test
+    fun `subject style sets title and color`() {
+        val lesson = Lesson("1", "PDO-Expert", 0, 10, null)
+        val style = SubjectStyle("PDO-Expert", displayName = "PDO", emoji = "💻", color = 42)
+        assertEquals("💻 PDO", lesson.toFields(style).title)
+        assertEquals(42, lesson.toFields(style).color)
+        assertEquals("💻 PDO-Expert", lesson.toFields(SubjectStyle("PDO-Expert", emoji = "💻")).title)
+        assertEquals("PDO-Expert", lesson.toFields(SubjectStyle("PDO-Expert", displayName = " ")).title)
+        assertEquals("VERVALLEN – 💻 PDO", lesson.copy(cancelled = true).toFields(style).title)
     }
 
     @Test

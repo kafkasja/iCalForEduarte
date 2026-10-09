@@ -4,8 +4,10 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Bundle
 import android.text.format.DateUtils
+import android.view.View
 import android.widget.Button
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -20,6 +22,8 @@ import dev.eduartesync.settings.AppSettings
 import dev.eduartesync.settings.SyncRange
 import dev.eduartesync.sync.Notifier
 import dev.eduartesync.sync.SyncScheduler
+import dev.eduartesync.update.Release
+import dev.eduartesync.update.UpdateChecker
 
 /** Opened by tapping the app icon twice quickly. */
 class SettingsActivity : Activity() {
@@ -92,9 +96,56 @@ class SettingsActivity : Activity() {
             startActivity(Intent(this, SubjectsActivity::class.java))
         }
 
-        findViewById<TextView>(R.id.version).text =
-            "Version ${packageManager.getPackageInfo(packageName, 0).versionName}"
+        loadVersions()
     }
+
+    /** Asks GitHub for the releases in the background and fills in the version section. */
+    private fun loadVersions() {
+        val current = UpdateChecker.currentVersion(this)
+        val version = findViewById<TextView>(R.id.version)
+        version.text = "You have $current. Checking for updates..."
+
+        Thread {
+            val releases = runCatching { UpdateChecker.fetchReleases() }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                releases.onFailure {
+                    version.text = "You have $current. Couldn't check for updates (no connection to GitHub)."
+                }
+                releases.onSuccess { list -> showVersions(current, list) }
+            }
+        }.start()
+    }
+
+    private fun showVersions(current: String, releases: List<Release>) {
+        val version = findViewById<TextView>(R.id.version)
+        val latest = releases.firstOrNull()
+        if (latest != null && UpdateChecker.isNewer(latest.version, current)) {
+            version.text = "You have $current. Version ${latest.version} is available."
+            findViewById<Button>(R.id.downloadUpdate).apply {
+                text = "Download ${latest.version}"
+                visibility = View.VISIBLE
+                setOnClickListener { open(latest.apkUrl ?: latest.pageUrl) }
+            }
+        } else {
+            version.text = "You have $current. This is the newest version."
+        }
+
+        if (releases.isEmpty()) return
+        findViewById<Button>(R.id.allVersions).apply {
+            visibility = View.VISIBLE
+            setOnClickListener {
+                val labels = releases.map { if (it.version == current) "${it.version} (installed)" else it.version }
+                AlertDialog.Builder(this@SettingsActivity)
+                    .setTitle("All versions")
+                    .setItems(labels.toTypedArray()) { _, i -> open(releases[i].apkUrl ?: releases[i].pageUrl) }
+                    .setNegativeButton("Close", null)
+                    .show()
+            }
+        }
+    }
+
+    private fun open(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
     override fun onResume() {
         super.onResume()

@@ -10,6 +10,24 @@
         android:paddingHorizontal="20dp"
         android:paddingBottom="24dp">
 
+        <TextView style="@style/SectionHeader" android:text="Version" />
+        <TextView
+            android:id="@+id/version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/downloadUpdate"
+            style="@style/RowButton"
+            android:visibility="gone" />
+        <Button
+            android:id="@+id/allVersions"
+            style="@style/RowButton"
+            android:text="All versions"
+            android:visibility="gone" />
+        <TextView
+            style="@style/Hint"
+            android:text="Downloads come from the GitHub Releases page. Install over the current version to keep your login. For an older version, uninstall first." />
+
         <TextView style="@style/SectionHeader" android:text="Status" />
         <TextView
             android:id="@+id/status"
@@ -76,10 +94,5 @@
         <TextView
             style="@style/Hint"
             android:text="Give each subject its own name, emoji and color in your calendar." />
-
-        <TextView
-            android:id="@+id/version"
-            style="@style/Hint"
-            android:paddingTop="24dp" />
     </LinearLayout>
 </ScrollView>

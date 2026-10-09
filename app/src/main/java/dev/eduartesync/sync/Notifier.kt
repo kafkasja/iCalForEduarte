@@ -18,7 +18,7 @@ import dev.eduartesync.ui.MainActivity
 
 /**
  * Two notification channels, each with its own switch in Android settings:
- * - "Sync problems": login expired or a sync failed. Always shown.
+ * - "Sync problems": login expired or a sync failed.
  * - "Schedule changes": what changed in the schedule. Can be muted with "Ignore".
  */
 object Notifier {

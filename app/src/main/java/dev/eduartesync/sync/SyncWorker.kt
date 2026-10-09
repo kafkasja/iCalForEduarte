@@ -8,6 +8,7 @@ import androidx.work.WorkerParameters
 import dev.eduartesync.Config
 import dev.eduartesync.auth.SessionManager
 import dev.eduartesync.calendar.CalendarWriter
+import dev.eduartesync.calendar.summarize
 import dev.eduartesync.source.EduarteSource
 import dev.eduartesync.source.SessionExpiredException
 import dev.eduartesync.source.mergeConsecutive
@@ -20,6 +21,11 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
+/**
+ * One sync: read the schedule from Eduarte, update the calendar, tell the user what happened.
+ * A sync started by tapping the app icon reports back with a toast; background syncs only
+ * notify about schedule changes and problems.
+ */
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     private val manual get() = inputData.getBoolean(KEY_MANUAL, false)
 
@@ -34,7 +40,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             return Result.success()
         }
         if (!CalendarWriter.hasPermission(context)) {
-            report("Eduarte Sync needs calendar permission")
+            report("Not synced: Eduarte Sync has no access to your calendar. Open the app to allow it.")
             return Result.success()
         }
 
@@ -46,36 +52,31 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             mergeConsecutive(EduarteSource(context).fetch(from, to))
         } catch (e: SessionExpiredException) {
             Notifier.loginRequired(context)
-            report("Eduarte login expired, tap the notification to log in again")
+            report("Not synced: your Eduarte login has expired. Tap the notification to log in again.")
             return Result.success()
-        } catch (e: IOException) {
-            Log.w(TAG, "Sync failed (attempt $runAttemptCount)", e)
-            if (runAttemptCount < MAX_RETRIES) {
-                if (runAttemptCount == 0) report("Sync failed: ${describe(e)}. Trying again in the background.")
-                return Result.retry()
-            }
-            Notifier.syncFailed(context, e.message)
-            report("Sync failed: no connection to Eduarte")
-            return Result.failure()
         } catch (e: Throwable) {
-            Log.e(TAG, "Sync failed", e)
-            val reason = describe(e)
-            Notifier.syncFailed(context, reason)
-            report("Sync failed: $reason")
+            Log.w(TAG, "Sync failed (attempt $runAttemptCount)", e)
+            val problem = SyncProblem.from(e)
+            // Connection problems are often temporary: try again later, but say so right away.
+            val retry = e is IOException && runAttemptCount < MAX_RETRIES
+            if (retry && runAttemptCount > 0) return Result.retry()
+            report(
+                "Not synced. ${problem.message}" +
+                    (if (retry) " Trying again in the background." else "") +
+                    "\n(${problem.details})"
+            )
+            if (retry) return Result.retry()
+            Notifier.syncFailed(context, problem)
             return Result.failure()
         }
 
-        val plan = CalendarWriter(context).sync(lessons, from)
-        Notifier.clear(context)
-        Log.i(TAG, "Synced ${lessons.size} lessons: +${plan.inserts.size} ~${plan.updates.size} -${plan.deletes.size}")
-        report("Synced ${lessons.size} lessons")
+        val changes = CalendarWriter(context).sync(lessons, from)
+        Notifier.clearProblem(context)
+        Notifier.scheduleChanged(context, changes)
+        Log.i(TAG, "Synced ${lessons.size} lessons: ${summarize(changes)}")
+        report("Synced ${lessons.size} lessons until ${to.dayOfMonth}/${to.monthValue}: ${summarize(changes)}")
         return Result.success()
     }
-
-    /** Error type and message including causes, so a screenshot of the toast is enough to debug. */
-    private fun describe(e: Throwable): String =
-        generateSequence(e) { it.cause }.take(3)
-            .joinToString(" / caused by ") { "${it.javaClass.simpleName}: ${it.message}" }
 
     /** Toast only for syncs started by tapping the app icon; background syncs stay silent. */
     private suspend fun report(message: String) {

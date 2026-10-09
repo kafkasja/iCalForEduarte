@@ -30,5 +30,10 @@
             android:name=".auth.LoginActivity"
             android:exported="false"
             android:label="@string/login_title" />
+
+        <!-- "Ignore" button on the schedule changes notification -->
+        <receiver
+            android:name=".sync.IgnoreChangesReceiver"
+            android:exported="false" />
     </application>
 </manifest>

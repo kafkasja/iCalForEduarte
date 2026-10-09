@@ -9,51 +9,111 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
+import dev.eduartesync.calendar.ScheduleChange
+import dev.eduartesync.calendar.summarize
 import dev.eduartesync.ui.MainActivity
 
+/**
+ * Two notification channels, each with its own switch in Android settings:
+ * - "Sync problems": login expired or a sync failed. Always shown.
+ * - "Schedule changes": what changed in the schedule. Can be muted with "Ignore".
+ */
 object Notifier {
-    private const val CHANNEL = "sync"
-    private const val ID_STATUS = 1
+    private const val CHANNEL_PROBLEMS = "sync"
+    private const val CHANNEL_CHANGES = "changes"
+    private const val ID_PROBLEM = 1
+    private const val ID_CHANGES = 2
+    private const val MAX_LINES = 6
 
     fun loginRequired(context: Context) = show(
-        context,
+        context, CHANNEL_PROBLEMS, ID_PROBLEM,
         title = "Log in to Eduarte again",
-        text = "Tap to log in so your schedule keeps syncing.",
+        text = "Your Eduarte login has expired. Tap to log in, your schedule syncs right after.",
         intent = Intent(context, LoginActivity::class.java),
     )
 
-    fun syncFailed(context: Context, reason: String?) = show(
-        context,
-        title = "Schedule sync failed",
-        text = reason ?: "Tap to try again.",
+    fun syncFailed(context: Context, problem: SyncProblem) = show(
+        context, CHANNEL_PROBLEMS, ID_PROBLEM,
+        title = "Schedule not synced",
+        text = "${problem.message}\n\nDetails: ${problem.details}",
         intent = Intent(context, MainActivity::class.java),
     )
 
-    fun clear(context: Context) = NotificationManagerCompat.from(context).cancel(ID_STATUS)
+    fun clearProblem(context: Context) =
+        context.getSystemService(NotificationManager::class.java).cancel(ID_PROBLEM)
 
-    private fun show(context: Context, title: String, text: String, intent: Intent) {
+    /** Lists what changed. Nothing is shown when nothing changed or the user muted these. */
+    fun scheduleChanged(context: Context, changes: List<ScheduleChange>) {
+        if (changes.isEmpty()) return
+        val lines = changes.take(MAX_LINES).map { it.text } +
+            listOfNotNull(if (changes.size > MAX_LINES) "and ${changes.size - MAX_LINES} more" else null)
+
+        val ignore = PendingIntent.getBroadcast(
+            context, 0, Intent(context, IgnoreChangesReceiver::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        show(
+            context, CHANNEL_CHANGES, ID_CHANGES,
+            title = "Schedule changed: ${summarize(changes)}",
+            text = lines.joinToString("\n"),
+            intent = Intent(context, MainActivity::class.java),
+        ) { it.addAction(0, "Ignore", ignore) }
+    }
+
+    /**
+     * "Ignore": turns the "Schedule changes" channel off, the same switch as in Android
+     * settings > Apps > Eduarte Sync > Notifications, where it can be turned back on.
+     * Returns false if Android didn't allow it, which happens when that switch was changed
+     * by hand before.
+     */
+    fun muteChanges(context: Context): Boolean {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.cancel(ID_CHANGES)
+        manager.createNotificationChannel(changesChannel(NotificationManager.IMPORTANCE_NONE))
+        return manager.getNotificationChannel(CHANNEL_CHANGES)?.importance == NotificationManager.IMPORTANCE_NONE
+    }
+
+    private fun changesChannel(importance: Int) =
+        NotificationChannel(CHANNEL_CHANGES, "Schedule changes", importance).apply {
+            description = "What changed in your schedule after a sync"
+        }
+
+    private fun show(
+        context: Context,
+        channel: String,
+        id: Int,
+        title: String,
+        text: String,
+        intent: Intent,
+        extra: (NotificationCompat.Builder) -> Unit = {},
+    ) {
         if (Build.VERSION.SDK_INT >= 33 &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
 
+        // Creating an existing channel never raises its importance, so a muted channel stays muted.
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Sync status", NotificationManager.IMPORTANCE_DEFAULT)
+            NotificationChannel(CHANNEL_PROBLEMS, "Sync problems", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Login expired or the schedule could not be synced"
+            }
         )
+        manager.createNotificationChannel(changesChannel(NotificationManager.IMPORTANCE_DEFAULT))
+
         val pending = PendingIntent.getActivity(
-            context, 0, intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            context, id, intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = NotificationCompat.Builder(context, CHANNEL)
+        val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat_sync)
             .setContentTitle(title)
-            .setContentText(text)
+            .setContentText(text.lineSequence().first())
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pending)
             .setAutoCancel(true)
-            .build()
-        manager.notify(ID_STATUS, notification)
+        extra(builder)
+        manager.notify(id, builder.build())
     }
 }

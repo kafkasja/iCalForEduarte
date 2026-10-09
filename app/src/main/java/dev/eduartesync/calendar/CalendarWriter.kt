@@ -21,15 +21,16 @@ import java.time.LocalDate
 class CalendarWriter(context: Context) {
     private val resolver = context.contentResolver
 
-    /** Makes the calendar match [lessons] for everything starting on or after [from]. */
-    fun sync(lessons: List<Lesson>, from: LocalDate): SyncPlan {
+    /**
+     * Makes the calendar match [lessons] for everything starting on or after [from].
+     * Returns what changed, in readable form.
+     */
+    fun sync(lessons: List<Lesson>, from: LocalDate): List<ScheduleChange> {
         val calendarId = findOrCreateCalendar()
         val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
 
-        val plan = planChanges(
-            existing = queryEvents(calendarId, fromMillis),
-            wanted = lessons.associate { it.id to it.toFields() },
-        )
+        val existing = queryEvents(calendarId, fromMillis)
+        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields() })
 
         val ops = ArrayList<ContentProviderOperation>()
         plan.deletes.forEach { rowId ->
@@ -49,7 +50,7 @@ class CalendarWriter(context: Context) {
                 .build()
         }
         if (ops.isNotEmpty()) resolver.applyBatch(CalendarContract.AUTHORITY, ops)
-        return plan
+        return describeChanges(existing, plan, Config.ZONE)
     }
 
     /** Looked up by account each time (not stored), so "Clear storage" never duplicates it. */

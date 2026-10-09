@@ -37,19 +37,19 @@ class AgendaParserTest {
           <div class="agenda--days has-horizontal-scroll">
             <div class="agenda--day"><h4 class="lead">ma 28 dec</h4><ul>
               <li class="js-agenda-detail agenda--course" id="l1"><div>
-                <span class="is-subject">PDO-Expert  OITSDO25B</span>
+                <span class="is-subject">PDO-Expert  KLAS01</span>
                 <span class="is-location">O_235</span>
                 <span class="is-participant">TEACH</span>
               </div></li>
               <li class="js-agenda-detail agenda--course" id="l2"><div>
-                <span class="is-subject">NOSQL  OITSDO25B</span>
+                <span class="is-subject">NOSQL  KLAS01</span>
                 <span class="is-location">O_318</span>
                 <span class="is-participant">OTHER</span>
               </div></li>
             </ul></div>
             <div class="agenda--day"><h4 class="lead">vr 1 jan</h4><ul>
               <li class="js-agenda-detail agenda--course" id="l3"><div>
-                <span class="is-subject">PDO-Expert  OITSDO25B</span>
+                <span class="is-subject">PDO-Expert  KLAS01</span>
                 <span class="is-location">O_239</span>
                 <span class="is-participant">TEACH</span>
               </div></li>
@@ -70,7 +70,7 @@ class AgendaParserTest {
 
         val pdo = week.lessons[0]
         assertEquals("PDO-Expert", pdo.subject)
-        assertEquals("OITSDO25B", pdo.group)
+        assertEquals("KLAS01", pdo.group)
         assertEquals("O_235", pdo.location)
         assertEquals("TEACH", pdo.teacher)
         // top 54px / (27px per 15 min) = 30 min after 08:00; 108px = 60 min
@@ -116,7 +116,7 @@ class AgendaParserTest {
 
     @Test
     fun `subject splitting`() {
-        assertEquals("PDO-Expert" to "OITSDO25B", AgendaParser.splitSubject("PDO-Expert  OITSDO25B"))
+        assertEquals("PDO-Expert" to "KLAS01", AgendaParser.splitSubject("PDO-Expert  KLAS01"))
         assertEquals("Engels" to null, AgendaParser.splitSubject("Engels"))
     }
 }

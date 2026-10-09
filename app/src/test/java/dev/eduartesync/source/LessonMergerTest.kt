@@ -8,7 +8,7 @@ class LessonMergerTest {
     private val hour = 3_600_000L
 
     private fun lesson(id: String, startHour: Long, endHour: Long, subject: String = "PDO-Expert", room: String = "O_235") =
-        Lesson(id, subject, startHour * hour, endHour * hour, room, teacher = "TEACH", group = "OITSDO25B")
+        Lesson(id, subject, startHour * hour, endHour * hour, room, teacher = "TEACH", group = "KLAS01")
 
     @Test
     fun `back-to-back same lesson becomes one`() {

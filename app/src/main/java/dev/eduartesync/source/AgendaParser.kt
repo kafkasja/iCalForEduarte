@@ -94,7 +94,7 @@ object AgendaParser {
         )
     }
 
-    /** "PDO-Expert  OITSDO25B" -> ("PDO-Expert", "OITSDO25B"). The portal separates them with 2+ spaces. */
+    /** "PDO-Expert  KLAS01" -> ("PDO-Expert", "KLAS01"). The portal separates them with 2+ spaces. */
     internal fun splitSubject(raw: String?): Pair<String, String?> {
         val parts = raw.orEmpty().trim().split(SUBJECT_SEPARATOR, limit = 2)
         return parts[0] to parts.getOrNull(1)?.trim()?.replace(WHITESPACE, " ")?.ifEmpty { null }

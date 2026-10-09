@@ -1,0 +1,21 @@
+# Gradle / Android
+.gradle/
+.kotlin/
+build/
+captures/
+local.properties
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Signing keys, builds and captured traffic
+signing/
+*.jks
+*.keystore
+*.p12
+*.apk
+*.har

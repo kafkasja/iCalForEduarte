@@ -11,12 +11,10 @@ import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** One week of the portal's agenda page, plus the links to the previous/next week. */
+/** One week of the portal's agenda page. */
 data class AgendaWeek(
     val days: List<LocalDate>,
     val lessons: List<Lesson>,
-    val previousWeekUrl: String?,
-    val nextWeekUrl: String?,
 )
 
 /**
@@ -86,12 +84,7 @@ object AgendaParser {
         }
 
         if (days.isEmpty()) throw AgendaFormatException("no days found")
-        return AgendaWeek(
-            days = days,
-            lessons = lessons,
-            previousWeekUrl = doc.selectFirst("a.time-filter--left")?.absUrl("href")?.ifEmpty { null },
-            nextWeekUrl = doc.selectFirst("a.time-filter--right")?.absUrl("href")?.ifEmpty { null },
-        )
+        return AgendaWeek(days, lessons)
     }
 
     /** "PDO-Expert  KLAS01" -> ("PDO-Expert", "KLAS01"). The portal separates them with 2+ spaces. */

@@ -9,8 +9,8 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 /**
- * Reads the schedule from the Talnet Eduarte student portal's agenda page. The portal opens on
- * the current week; the previous/next arrows are followed week by week, like clicking them.
+ * Reads the schedule from the Talnet Eduarte student portal's agenda page. The page opens on
+ * the current week; other weeks are shown by entering a date in the agenda's date field.
  */
 class EduarteSource(private val context: Context) {
 
@@ -18,29 +18,24 @@ class EduarteSource(private val context: Context) {
     suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> {
         val browser = withContext(Dispatchers.Main) { PortalBrowser(context) }
         try {
-            var page = load(browser, AGENDA_URL)
+            var page = parse(withContext(Dispatchers.Main) { browser.open(AGENDA_URL) })
             val lessons = page.lessons.toMutableList()
 
-            // Walk back until `from` is covered, then forward until `to` is covered.
+            // Earlier weeks are only needed if the page opened after `from`.
             var steps = 0
             while (page.days.first() > from && steps++ < MAX_WEEKS) {
-                page = load(browser, page.previousWeekUrl ?: break)
+                page = showWeekOf(browser, page.days.first().minusWeeks(1))
                 lessons += page.lessons
             }
             while (page.days.last() < to && steps++ < MAX_WEEKS) {
-                val next = load(browser, page.nextWeekUrl ?: break)
-                lessons += next.lessons
-                val advanced = next.days.last() > page.days.last()
+                val next = showWeekOf(browser, page.days.last().plusDays(1))
+                // Never sync a partial schedule: a missing week would look like "no lessons"
+                // and its events would be deleted.
+                if (next.days.last() <= page.days.last()) {
+                    throw AgendaFormatException("asked for the week after ${page.days.last()}, got ${next.days.first()} to ${next.days.last()}")
+                }
                 page = next
-                if (!advanced) break
-            }
-            // Never sync a partial schedule: missing weeks would look like "no lessons" and
-            // their events would be deleted.
-            if (page.days.last() < to) {
-                throw AgendaFormatException(
-                    "Could not load the schedule up to $to (got until ${page.days.last()}, " +
-                        "next week link ${if (page.nextWeekUrl == null) "missing" else "did not advance"})"
-                )
+                lessons += page.lessons
             }
 
             val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
@@ -51,9 +46,12 @@ class EduarteSource(private val context: Context) {
         }
     }
 
-    private suspend fun load(browser: PortalBrowser, url: String): AgendaWeek {
-        val (finalUrl, html) = withContext(Dispatchers.Main) { browser.open(url) }
-        val week = withContext(Dispatchers.Default) { AgendaParser.parse(html, finalUrl, Config.ZONE) }
+    private suspend fun showWeekOf(browser: PortalBrowser, date: LocalDate): AgendaWeek =
+        parse(withContext(Dispatchers.Main) { browser.showWeekOf(date) })
+
+    private suspend fun parse(page: Pair<String, String>): AgendaWeek {
+        val (url, html) = page
+        val week = withContext(Dispatchers.Default) { AgendaParser.parse(html, url, Config.ZONE) }
         Log.i(TAG, "Loaded ${week.days.first()} to ${week.days.last()}: ${week.lessons.size} lessons")
         return week
     }

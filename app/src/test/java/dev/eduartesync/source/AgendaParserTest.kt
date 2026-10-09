@@ -93,13 +93,6 @@ class AgendaParserTest {
     }
 
     @Test
-    fun `week navigation links are absolute`() {
-        val week = AgendaParser.parse(html, pageUrl, zone)
-        assertEquals("https://talnet-student.educus.nl/agenda?2-3.-filter-terug&op=2", week.previousWeekUrl)
-        assertEquals("https://talnet-student.educus.nl/agenda?2-3.-filter-vooruit&op=2", week.nextWeekUrl)
-    }
-
-    @Test
     fun `ids are stable and unique`() {
         val first = AgendaParser.parse(html, pageUrl, zone).lessons.map { it.id }
         val again = AgendaParser.parse(html, pageUrl, zone).lessons.map { it.id }

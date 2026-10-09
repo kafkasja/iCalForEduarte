@@ -23,7 +23,7 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 
 1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. The app never sees or stores the password; Microsoft and Eduarte handle it on their own pages.
 2. **What is stored.** Only the cookies that the login sets, in the app's private storage on the phone, plus a "logged in" flag. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
-3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies and follows the "next week" arrow, exactly like clicking it. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
+3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies. To see next week it enters a date in the agenda's date field, like you would. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
 4. **Writing the calendar.** The app creates one local calendar on the phone and only ever touches that calendar. Each event stores a key (date, start time, subject, group), so the next sync updates the event instead of adding a second one.
 5. **Network.** The app only connects to the Eduarte portal and, when logging in, to the school's Microsoft login. It has no server of its own, no analytics and no ads.
 
@@ -41,7 +41,7 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 |---|---|
 | `auth/LoginActivity.kt` | Login screen (Eduarte/Microsoft in a WebView) |
 | `auth/SessionManager.kt` | Remembers whether you're logged in |
-| `source/PortalBrowser.kt` | Hidden WebView that opens agenda pages with the login session |
+| `source/PortalBrowser.kt` | Hidden WebView that opens the agenda with the login session and switches weeks |
 | `source/EduarteSource.kt` | Loads this week and next week |
 | `source/AgendaParser.kt` | Reads lessons and times from the agenda HTML |
 | `source/LessonMerger.kt` | Merges back-to-back lessons of the same subject |

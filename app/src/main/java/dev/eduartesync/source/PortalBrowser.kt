@@ -8,10 +8,13 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import dev.eduartesync.auth.SessionManager
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import java.io.IOException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.coroutines.resume
 
 /**
@@ -60,7 +63,25 @@ class PortalBrowser(context: Context) {
             throw IOException("Eduarte did not load the agenda in time")
         }
         CookieManager.getInstance().flush()
-        return finalUrl to currentHtml()
+        return finalUrl to evaluate(PAGE_HTML)
+    }
+
+    /**
+     * Switches the open agenda to the week containing [date] by typing the date into the
+     * agenda's date field, like a user would. Eduarte then reloads the agenda part of the page
+     * in the background. Returns the URL and HTML once the new week is shown.
+     */
+    suspend fun showWeekOf(date: LocalDate): Pair<String, String> {
+        val before = evaluate(FIRST_DAY_HEADER)
+        val result = evaluate(setDate(date.format(DATE_FIELD_FORMAT)))
+        if (result != "ok") throw AgendaFormatException("date field not found")
+
+        val switched = withTimeoutOrNull(TIMEOUT_MS) {
+            while (evaluate(FIRST_DAY_HEADER) == before) delay(POLL_MS)
+        } != null
+        if (!switched) throw IOException("Eduarte did not switch to the week of $date")
+        delay(SETTLE_MS) // the new week's lesson positions arrive just after the lessons
+        return webView.url.orEmpty() to evaluate(PAGE_HTML)
     }
 
     fun destroy() {
@@ -68,18 +89,36 @@ class PortalBrowser(context: Context) {
         webView.destroy()
     }
 
-    private suspend fun currentHtml(): String = suspendCancellableCoroutine { cont ->
-        webView.evaluateJavascript("document.documentElement.outerHTML") { json ->
-            // The result is a JSON string literal.
-            cont.resume(JSONArray("[$json]").getString(0))
+    /** Runs [script] in the page and returns its result as a string ("" for null). */
+    private suspend fun evaluate(script: String): String = suspendCancellableCoroutine { cont ->
+        webView.evaluateJavascript(script) { json ->
+            // The result comes back JSON encoded.
+            val value = JSONArray("[$json]")
+            cont.resume(if (value.isNull(0)) "" else value.get(0).toString())
         }
     }
+
+    private fun setDate(date: String) = """
+        (function () {
+          var field = document.querySelector('input[name="filter:datum"]');
+          if (!field) return 'missing';
+          field.value = '$date';
+          if (window.jQuery) jQuery(field).trigger('change');
+          else field.dispatchEvent(new Event('change', { bubbles: true }));
+          return 'ok';
+        })()
+    """.trimIndent()
 
     private fun isAgendaPage(url: String) =
         SessionManager.isPortalPage(url) && (Uri.parse(url).path ?: "").startsWith("/agenda")
 
     private companion object {
         const val TIMEOUT_MS = 45_000L
+        const val POLL_MS = 250L
+        const val SETTLE_MS = 750L
+        const val PAGE_HTML = "document.documentElement.outerHTML"
+        const val FIRST_DAY_HEADER = "(document.querySelector('div.agenda--day h4') || {}).textContent"
+        val DATE_FIELD_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
     }
 }
 

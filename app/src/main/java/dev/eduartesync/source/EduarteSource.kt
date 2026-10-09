@@ -1,96 +1,67 @@
 package dev.eduartesync.source
 
+import android.content.Context
+import android.util.Log
 import dev.eduartesync.Config
 import dev.eduartesync.model.Lesson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.IOException
 import java.time.LocalDate
-import java.util.concurrent.TimeUnit
 
 /**
- * Reads the schedule from the Talnet Eduarte student portal's agenda page using the logged-in
- * session. The portal is a stateful Wicket app: it opens on the current week, and the
- * previous/next arrows are links to new page versions, which are followed week by week.
+ * Reads the schedule from the Talnet Eduarte student portal's agenda page. The portal opens on
+ * the current week; the previous/next arrows are followed week by week, like clicking them.
  */
-class EduarteSource(
-    private val http: OkHttpClient = defaultClient,
-) {
+class EduarteSource(private val context: Context) {
 
     /** Lessons starting from [from] up to and including [to]. */
-    suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> =
-        withContext(Dispatchers.IO) {
-            var page = load(AGENDA_URL)
+    suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> {
+        val browser = withContext(Dispatchers.Main) { PortalBrowser(context) }
+        try {
+            var page = load(browser, AGENDA_URL)
             val lessons = page.lessons.toMutableList()
 
             // Walk back until `from` is covered, then forward until `to` is covered.
             var steps = 0
             while (page.days.first() > from && steps++ < MAX_WEEKS) {
-                page = load(page.previousWeekUrl ?: break)
+                page = load(browser, page.previousWeekUrl ?: break)
                 lessons += page.lessons
             }
             while (page.days.last() < to && steps++ < MAX_WEEKS) {
-                page = load(page.nextWeekUrl ?: break)
-                lessons += page.lessons
+                val next = load(browser, page.nextWeekUrl ?: break)
+                lessons += next.lessons
+                val advanced = next.days.last() > page.days.last()
+                page = next
+                if (!advanced) break
             }
             // Never sync a partial schedule: missing weeks would look like "no lessons" and
             // their events would be deleted.
-            if (page.days.last() < to) throw IOException("Could not load the schedule up to $to")
+            if (page.days.last() < to) {
+                throw IOException(
+                    "Could not load the schedule up to $to (got until ${page.days.last()}, " +
+                        "next week link ${if (page.nextWeekUrl == null) "missing" else "did not advance"})"
+                )
+            }
 
             val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
             val toMillis = to.plusDays(1).atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
-            lessons.filter { it.startMillis in fromMillis until toMillis }.distinctBy { it.id }
+            return lessons.filter { it.startMillis in fromMillis until toMillis }.distinctBy { it.id }
+        } finally {
+            withContext(Dispatchers.Main) { browser.destroy() }
         }
-
-    private fun load(url: String): AgendaWeek {
-        val (finalUrl, html) = get(url)
-        return AgendaParser.parse(html, finalUrl, Config.ZONE)
     }
 
-    /**
-     * GET [url] with the session cookies, following Wicket's own redirects by hand.
-     * Returns the final URL and body. Throws [SessionExpiredException] when sent to the login page.
-     */
-    private fun get(url: String): Pair<String, String> {
-        var current = url
-        repeat(MAX_REDIRECTS) {
-            val request = Request.Builder().url(current).build()
-            http.newCall(request).execute().use { response ->
-                if (response.isRedirect) {
-                    val location = response.header("Location") ?: throw IOException("Redirect without location")
-                    val next = current.toHttpUrl().resolve(location) ?: throw IOException("Bad redirect: $location")
-                    if (next.host != Config.PORTAL_HOST || next.encodedPath.startsWith("/oauth")) {
-                        throw SessionExpiredException()
-                    }
-                    current = next.toString()
-                } else {
-                    if (!response.isSuccessful) throw IOException("HTTP ${response.code} for $current")
-                    val body = response.body?.string() ?: throw IOException("Empty response for $current")
-                    return current to body
-                }
-            }
-        }
-        throw IOException("Too many redirects for $url")
+    private suspend fun load(browser: PortalBrowser, url: String): AgendaWeek {
+        val (finalUrl, html) = withContext(Dispatchers.Main) { browser.open(url) }
+        val week = withContext(Dispatchers.Default) { AgendaParser.parse(html, finalUrl, Config.ZONE) }
+        Log.i(TAG, "Loaded ${week.days.first()} to ${week.days.last()}: ${week.lessons.size} lessons")
+        return week
     }
 
-    companion object {
-        private const val AGENDA_URL = Config.PORTAL_URL + "agenda"
-        private const val MAX_REDIRECTS = 6
-        private const val MAX_WEEKS = 12
-
-        // Redirects are handled by hand: a redirect off the portal means the session expired.
-        private val defaultClient = OkHttpClient.Builder()
-            .cookieJar(WebViewCookieJar())
-            .followRedirects(false)
-            .followSslRedirects(false)
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
+    private companion object {
+        const val TAG = "EduarteSync"
+        const val AGENDA_URL = Config.PORTAL_URL + "agenda"
+        const val MAX_WEEKS = 12
     }
 }
-
-/** Eduarte sent us to the login page: the session cookie is gone or expired. */
-class SessionExpiredException : Exception("Eduarte session expired")

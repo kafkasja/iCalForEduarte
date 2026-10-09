@@ -8,7 +8,6 @@ import androidx.work.WorkerParameters
 import dev.eduartesync.Config
 import dev.eduartesync.auth.SessionManager
 import dev.eduartesync.calendar.CalendarWriter
-import dev.eduartesync.model.Lesson
 import dev.eduartesync.source.EduarteSource
 import dev.eduartesync.source.SessionExpiredException
 import dev.eduartesync.source.mergeConsecutive
@@ -44,7 +43,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val to = from.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).plusWeeks(1)
 
         val lessons = try {
-            mergeConsecutive(fetchWithRelogin(EduarteSource(), from, to))
+            mergeConsecutive(EduarteSource(context).fetch(from, to))
         } catch (e: SessionExpiredException) {
             Notifier.loginRequired(context)
             report("Eduarte login expired, tap the notification to log in again")
@@ -69,15 +68,6 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         report("Synced ${lessons.size} lessons")
         return Result.success()
     }
-
-    /** One silent re-login attempt if the Eduarte session expired. */
-    private suspend fun fetchWithRelogin(source: EduarteSource, from: LocalDate, to: LocalDate): List<Lesson> =
-        try {
-            source.fetch(from, to)
-        } catch (e: SessionExpiredException) {
-            if (!SessionManager.silentRelogin(applicationContext)) throw e
-            source.fetch(from, to)
-        }
 
     /** Error type and message including causes, so a screenshot of the toast is enough to debug. */
     private fun describe(e: Throwable): String =

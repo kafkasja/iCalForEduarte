@@ -6,7 +6,6 @@ import dev.eduartesync.Config
 import dev.eduartesync.model.Lesson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
 import java.time.LocalDate
 
 /**
@@ -38,7 +37,7 @@ class EduarteSource(private val context: Context) {
             // Never sync a partial schedule: missing weeks would look like "no lessons" and
             // their events would be deleted.
             if (page.days.last() < to) {
-                throw IOException(
+                throw AgendaFormatException(
                     "Could not load the schedule up to $to (got until ${page.days.last()}, " +
                         "next week link ${if (page.nextWeekUrl == null) "missing" else "did not advance"})"
                 )

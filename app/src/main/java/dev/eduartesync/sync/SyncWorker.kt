@@ -50,7 +50,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             return Result.success()
         } catch (e: IOException) {
             Log.w(TAG, "Sync failed (attempt $runAttemptCount)", e)
-            if (runAttemptCount < MAX_RETRIES) return Result.retry()
+            if (runAttemptCount < MAX_RETRIES) {
+                if (runAttemptCount == 0) report("Sync failed: ${describe(e)}. Trying again in the background.")
+                return Result.retry()
+            }
             Notifier.syncFailed(context, e.message)
             report("Sync failed: no connection to Eduarte")
             return Result.failure()

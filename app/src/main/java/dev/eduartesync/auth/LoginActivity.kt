@@ -28,6 +28,8 @@ class LoginActivity : Activity() {
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     if (!done && SessionManager.isPortalPage(url)) onLoggedIn()
+                    // Always "stay signed in", otherwise the login expires after a short while.
+                    if (MicrosoftLogin.isMicrosoftPage(url)) view.evaluateJavascript(MicrosoftLogin.script(pickAccount = false), null)
                 }
             }
         }

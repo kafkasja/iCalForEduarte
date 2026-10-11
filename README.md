@@ -33,7 +33,7 @@ Clearing the app's storage in Android settings resets everything, including the 
 
 ## What the app does, step by step
 
-1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. The app never sees or stores the password; Microsoft and Eduarte handle it on their own pages.
+1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. The app never sees or stores the password; Microsoft and Eduarte handle it on their own pages. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
 2. **What is stored.** The cookies that the login sets, a "logged in" flag, your settings and your subject list, all in the app's private storage on the phone. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
 3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies. To see next week it enters a date in the agenda's date field, like you would. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
 4. **Writing the calendar.** The app creates one local calendar on the phone and only ever touches that calendar. Each event stores a key (date, start time, subject, group), so the next sync updates the event instead of adding a second one.

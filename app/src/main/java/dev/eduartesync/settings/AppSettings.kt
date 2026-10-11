@@ -54,11 +54,6 @@ class AppSettings(context: Context) {
         get() = prefs.getString(KEY_SYNCED_UNTIL, null)?.let(LocalDate::parse)
         set(value) = prefs.edit().putString(KEY_SYNCED_UNTIL, value?.toString()).apply()
 
-    /** Epoch millis of the last tap on the app icon, to detect a double tap. */
-    var lastLaunchAt: Long
-        get() = prefs.getLong(KEY_LAST_LAUNCH_AT, 0)
-        set(value) = prefs.edit().putLong(KEY_LAST_LAUNCH_AT, value).apply()
-
     fun registerListener(listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener) =
         prefs.registerOnSharedPreferenceChangeListener(listener)
 
@@ -72,6 +67,5 @@ class AppSettings(context: Context) {
         const val KEY_LAST_SYNC_AT = "last_sync_at"
         const val KEY_LAST_SYNC_RESULT = "last_sync_result"
         const val KEY_SYNCED_UNTIL = "synced_until"
-        const val KEY_LAST_LAUNCH_AT = "last_launch_at"
     }
 }

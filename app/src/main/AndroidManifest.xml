@@ -35,6 +35,7 @@
         <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
+            android:taskAffinity="dev.eduartesync.settings"
             android:theme="@style/Theme.EduarteSync.Screen" />
 
         <activity

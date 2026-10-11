@@ -19,6 +19,3 @@ signing/
 *.p12
 *.apk
 *.har
-
-# Local tool settings
-.claude/

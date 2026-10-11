@@ -6,6 +6,7 @@ import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import dev.eduartesync.auth.MicrosoftLogin
 import dev.eduartesync.auth.SessionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -46,6 +47,9 @@ class PortalBrowser(context: Context) {
         onPageFinished = { loaded ->
             when {
                 isAgendaPage(loaded) -> landed.complete(loaded)
+                // Session renewal stopped at "Stay signed in?" or "Pick an account": click through.
+                MicrosoftLogin.isMicrosoftPage(loaded) ->
+                    webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
                 // Came back from a session renewal on the home page: open the agenda again.
                 SessionManager.isPortalPage(loaded) && !reopened -> {
                     reopened = true

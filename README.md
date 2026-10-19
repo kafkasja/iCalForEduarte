@@ -26,14 +26,16 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 - **Sync:** turn the automatic sync off (tapping the icon still syncs), and choose how far ahead to sync: today only, rest of this week, through next week, or as far as possible (8 weeks).
 - **Notifications:** shows whether change notifications are on, with a shortcut to Android's settings for them.
 - **Clear calendar:** removes the "Eduarte rooster" calendar and everything in it. The next sync brings it back.
-- **Log out / switch account:** removes the login from the phone. There is no "change password", because the app never has your password.
+- **Room in the event name:** puts the room before or after the lesson name, e.g. "PDO · B1.12". Lock screens and widgets (like Samsung's) often show only the name and time of an event, so this is the way to see the room there. Off by default; changing it syncs right away.
+- **Log out / switch account:** removes the login, and a saved email and password, from the phone.
+- **Fill in my email and password:** off by default. When on, the email and password you type at the next login are saved, and every login after that fills them in, so only the Authenticator is left. Turning it off deletes them.
 - **Subjects (beta):** every subject that showed up in your schedule stays in this list until you remove it. Give each one its own name, emoji and color, e.g. "PDO-Expert" becomes "💻 PDO".
 
 Clearing the app's storage in Android settings resets everything, including the subject list.
 
 ## What the app does, step by step
 
-1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. The app never sees or stores the password; Microsoft and Eduarte handle it on their own pages. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
+1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. By default the app never stores the password; Microsoft and Eduarte handle it on their own pages. With "Fill in my email and password" on, the app reads what you type on the Microsoft login page and stores it encrypted with a key in the Android Keystore, which never leaves the phone. It only fills it in on the Microsoft login page, and tries a saved password once per login screen, so a changed password doesn't get tried over and over. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
 2. **What is stored.** The cookies that the login sets, a "logged in" flag, your settings and your subject list, all in the app's private storage on the phone. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
 3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies. To see next week it enters a date in the agenda's date field, like you would. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
 4. **Writing the calendar.** The app creates one local calendar on the phone and only ever touches that calendar. Each event stores a key (date, start time, subject, group), so the next sync updates the event instead of adding a second one.
@@ -53,6 +55,8 @@ Clearing the app's storage in Android settings resets everything, including the 
 |---|---|
 | `auth/LoginActivity.kt` | Login screen (Eduarte/Microsoft in a WebView) |
 | `auth/SessionManager.kt` | Remembers whether you're logged in |
+| `auth/SavedLogin.kt` | Encrypted email and password, when you turned that on |
+| `auth/MicrosoftLogin.kt` | Clicks through "Stay signed in?" and fills in a saved login |
 | `source/PortalBrowser.kt` | Hidden WebView that opens the agenda with the login session and switches weeks |
 | `source/EduarteSource.kt` | Loads this week and next week |
 | `source/AgendaParser.kt` | Reads lessons and times from the agenda HTML |

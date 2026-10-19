@@ -1,6 +1,7 @@
 package dev.eduartesync.calendar
 
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.settings.RoomInTitle
 import dev.eduartesync.subjects.SubjectStyle
 
 /** The calendar fields we control for one event. */
@@ -28,12 +29,21 @@ data class SyncPlan(
     val deletes: List<Long>,
 )
 
-/** How a lesson looks in the calendar. [style] is the user's customization from the Subjects page. */
-fun Lesson.toFields(style: SubjectStyle? = null): EventFields {
-    val name = listOfNotNull(
+/**
+ * How a lesson looks in the calendar. [style] is the user's customization from the Subjects page,
+ * [room] says whether the room is also put in the title.
+ */
+fun Lesson.toFields(style: SubjectStyle? = null, room: RoomInTitle = RoomInTitle.OFF): EventFields {
+    val subjectName = listOfNotNull(
         style?.emoji?.takeIf { it.isNotBlank() },
         style?.displayName?.takeIf { it.isNotBlank() } ?: subject,
     ).joinToString(" ")
+    val where = location?.takeIf { it.isNotBlank() }
+    val name = when {
+        where == null || room == RoomInTitle.OFF -> subjectName
+        room == RoomInTitle.AFTER -> "$subjectName$ROOM_SEPARATOR$where"
+        else -> "$where$ROOM_SEPARATOR$subjectName"
+    }
     return EventFields(
         title = if (cancelled) "$CANCELLED_PREFIX$name" else name,
         location = location.orEmpty(),
@@ -48,6 +58,7 @@ fun Lesson.toFields(style: SubjectStyle? = null): EventFields {
 }
 
 const val CANCELLED_PREFIX = "VERVALLEN – "
+const val ROOM_SEPARATOR = " · "
 
 /**
  * Works out what to change so the calendar matches [wanted] (lesson id -> fields).

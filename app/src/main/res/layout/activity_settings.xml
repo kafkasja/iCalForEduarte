@@ -76,6 +76,18 @@
         <TextView
             style="@style/Hint"
             android:text="Removes everything this app put in your calendar. Sync again to get it back." />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:text="Room in the event name" />
+        <RadioGroup
+            android:id="@+id/roomInTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+        <TextView
+            style="@style/Hint"
+            android:text="Lock screens and widgets often show only the name and time of an event. With the room in the name you see it there too." />
 
         <TextView style="@style/SectionHeader" android:text="Account" />
         <Button
@@ -84,7 +96,23 @@
             android:text="Log out / switch account" />
         <TextView
             style="@style/Hint"
-            android:text="Removes your Eduarte login from this phone. Your password was never stored by this app." />
+            android:text="Removes your Eduarte login and a saved password from this phone." />
+        <Switch
+            android:id="@+id/saveLogin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="Fill in my email and password" />
+        <TextView
+            style="@style/Hint"
+            android:text="When you have to log in again, only the Authenticator is left for you. Saved encrypted on this phone the next time you log in, and only sent to the Microsoft login page. Turning this off deletes them." />
+        <Button
+            android:id="@+id/loginLog"
+            style="@style/RowButton"
+            android:text="Login log" />
+        <TextView
+            style="@style/Hint"
+            android:text="What happened during the last logins, to find out why the login keeps expiring. No passwords or codes are in it." />
 
         <TextView style="@style/SectionHeader" android:text="Beta" />
         <Button

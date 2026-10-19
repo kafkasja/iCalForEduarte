@@ -12,6 +12,7 @@ import android.provider.CalendarContract.Calendars
 import android.provider.CalendarContract.Events
 import dev.eduartesync.Config
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.settings.RoomInTitle
 import dev.eduartesync.subjects.SubjectStyle
 import java.time.LocalDate
 
@@ -24,7 +25,7 @@ class CalendarWriter(context: Context) {
 
     /**
      * Makes the calendar match [lessons] for everything starting on or after [from], using the
-     * subject [styles] from the Subjects page. Returns what changed in the schedule up to
+     * subject [styles] from the Subjects page and the [room] setting. Returns what changed in the schedule up to
      * [reportUntil] in readable form; later days are new to the calendar, not changes.
      */
     fun sync(
@@ -32,12 +33,13 @@ class CalendarWriter(context: Context) {
         from: LocalDate,
         styles: Map<String, SubjectStyle>,
         reportUntil: LocalDate?,
+        room: RoomInTitle = RoomInTitle.OFF,
     ): List<ScheduleChange> {
         val calendarId = findOrCreateCalendar()
         val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
 
         val existing = queryEvents(calendarId, fromMillis)
-        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields(styles[it.subject]) })
+        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields(styles[it.subject], room) })
 
         val ops = ArrayList<ContentProviderOperation>()
         plan.deletes.forEach { rowId ->

@@ -2,6 +2,8 @@ package dev.eduartesync.ui
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -16,9 +18,12 @@ import android.widget.TextView
 import android.widget.Toast
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
+import dev.eduartesync.auth.LoginLog
+import dev.eduartesync.auth.SavedLogin
 import dev.eduartesync.auth.SessionManager
 import dev.eduartesync.calendar.CalendarWriter
 import dev.eduartesync.settings.AppSettings
+import dev.eduartesync.settings.RoomInTitle
 import dev.eduartesync.settings.SyncRange
 import dev.eduartesync.sync.Notifier
 import dev.eduartesync.sync.SyncScheduler
@@ -71,6 +76,21 @@ class SettingsActivity : Activity() {
             status.text = "Syncing with the new range..."
         }
 
+        val room = findViewById<RadioGroup>(R.id.roomInTitle)
+        RoomInTitle.entries.forEach { option ->
+            room.addView(RadioButton(this).apply {
+                id = View.generateViewId()
+                tag = option
+                text = option.label
+                isChecked = option == settings.roomInTitle
+            })
+        }
+        room.setOnCheckedChangeListener { group, id ->
+            settings.roomInTitle = group.findViewById<View>(id).tag as RoomInTitle
+            SyncScheduler.syncNow(this)
+            status.text = "Syncing to update the event names..."
+        }
+
         findViewById<Button>(R.id.notificationSettings).setOnClickListener {
             startActivity(Notifier.changesSettingsIntent(this))
         }
@@ -91,6 +111,16 @@ class SettingsActivity : Activity() {
                 finish()
             }
         }
+
+        findViewById<Switch>(R.id.saveLogin).apply {
+            isChecked = SavedLogin.isEnabled(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on ->
+                SavedLogin.setEnabled(this@SettingsActivity, on)
+                if (on) toast("Your email and password are saved the next time you log in.")
+            }
+        }
+
+        findViewById<Button>(R.id.loginLog).setOnClickListener { showLoginLog() }
 
         findViewById<Button>(R.id.subjects).setOnClickListener {
             startActivity(Intent(this, SubjectsActivity::class.java))
@@ -143,6 +173,21 @@ class SettingsActivity : Activity() {
                     .show()
             }
         }
+    }
+
+    private fun showLoginLog() {
+        val log = LoginLog.text(this).ifEmpty { "Nothing logged yet." }
+        AlertDialog.Builder(this)
+            .setTitle("Login log")
+            .setMessage(log)
+            .setPositiveButton("Copy") { _, _ ->
+                val clipboard = getSystemService(ClipboardManager::class.java)
+                clipboard.setPrimaryClip(ClipData.newPlainText("Login log", log))
+                toast("Copied")
+            }
+            .setNeutralButton("Clear") { _, _ -> LoginLog.clear(this) }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     private fun open(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))

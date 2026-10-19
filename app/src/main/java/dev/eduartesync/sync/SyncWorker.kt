@@ -75,7 +75,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         subjects.addSeen(lessons.map { it.subject })
         // Changes are only reported for days the previous sync already covered.
         val reportUntil = settings.syncedUntil?.let { minOf(it, to) }
-        val changes = CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil)
+        val changes = CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil, settings.roomInTitle)
         settings.syncedUntil = to
 
         Notifier.clearProblem(context)

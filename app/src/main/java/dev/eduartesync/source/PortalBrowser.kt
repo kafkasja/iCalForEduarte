@@ -3,9 +3,12 @@ package dev.eduartesync.source
 import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
+import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import dev.eduartesync.auth.LoginLog
 import dev.eduartesync.auth.MicrosoftLogin
 import dev.eduartesync.auth.SessionManager
 import kotlinx.coroutines.CompletableDeferred
@@ -27,14 +30,23 @@ import kotlin.coroutines.resume
  */
 @SuppressLint("SetJavaScriptEnabled")
 class PortalBrowser(context: Context) {
+    private val appContext = context.applicationContext
     private var onPageFinished: ((String) -> Unit)? = null
 
-    private val webView = WebView(context.applicationContext).apply {
+    private val webView = WebView(appContext).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView, url: String) {
                 onPageFinished?.invoke(url)
+            }
+        }
+        webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                val text = message.message()
+                if (!text.startsWith(LoginLog.CONSOLE_PREFIX)) return false
+                LoginLog.add(appContext, text.removePrefix(LoginLog.CONSOLE_PREFIX))
+                return true
             }
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
@@ -44,12 +56,20 @@ class PortalBrowser(context: Context) {
     suspend fun open(url: String): Pair<String, String> {
         val landed = CompletableDeferred<String>()
         var reopened = false
+        var renewing = false
         onPageFinished = { loaded ->
             when {
                 isAgendaPage(loaded) -> landed.complete(loaded)
                 // Session renewal stopped at "Stay signed in?" or "Pick an account": click through.
-                MicrosoftLogin.isMicrosoftPage(loaded) ->
+                MicrosoftLogin.isMicrosoftPage(loaded) -> {
+                    if (!renewing) {
+                        renewing = true
+                        LoginLog.add(appContext, "sync: session renewal through Microsoft")
+                        LoginLog.microsoftCookies(appContext)
+                    }
+                    LoginLog.page(appContext, loaded)
                     webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
+                }
                 // Came back from a session renewal on the home page: open the agenda again.
                 SessionManager.isPortalPage(loaded) && !reopened -> {
                     reopened = true
@@ -63,10 +83,15 @@ class PortalBrowser(context: Context) {
 
         if (finalUrl == null) {
             // Stuck on the Microsoft or Eduarte login page: the user has to log in again.
-            if (!SessionManager.isPortalPage(webView.url)) throw SessionExpiredException()
+            if (!SessionManager.isPortalPage(webView.url)) {
+                LoginLog.add(appContext, "sync: login expired, stuck on this page:")
+                LoginLog.page(appContext, webView.url)
+                throw SessionExpiredException()
+            }
             throw IOException("Eduarte did not load the agenda in time")
         }
         CookieManager.getInstance().flush()
+        if (renewing) LoginLog.add(appContext, "sync: session renewed without the user")
         return finalUrl to evaluate(PAGE_HTML)
     }
 

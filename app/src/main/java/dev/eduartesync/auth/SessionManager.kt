@@ -8,7 +8,8 @@ import dev.eduartesync.Config
 
 /**
  * Login state. The actual credentials are the WebView's cookies (Eduarte + Microsoft session),
- * stored in the app's private storage. The password is never seen or stored by this app.
+ * stored in the app's private storage. The password is only stored when the user turns that on,
+ * see [SavedLogin].
  * "Clear storage" in Android settings wipes everything and brings back the login screen.
  */
 object SessionManager {
@@ -28,8 +29,9 @@ object SessionManager {
         return uri.host == Config.PORTAL_HOST && !(uri.path ?: "").startsWith("/oauth-callback")
     }
 
-    /** Removes the Eduarte and Microsoft login from this phone. */
+    /** Removes the Eduarte and Microsoft login, and a saved email and password, from this phone. */
     fun logOut(context: Context) {
+        SavedLogin.forget(context)
         CookieManager.getInstance().removeAllCookies(null)
         CookieManager.getInstance().flush()
         WebStorage.getInstance().deleteAllData()

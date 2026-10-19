@@ -25,6 +25,21 @@ enum class SyncRange(val key: String, val label: String) {
     }
 }
 
+/**
+ * Whether the room goes into the event title. Lock screens and widgets (like Samsung's) often
+ * show only the title and time of an event, not its location. Saved by [key], like [SyncRange].
+ */
+enum class RoomInTitle(val key: String, val label: String) {
+    OFF("off", "Don't add the room"),
+    AFTER("after", "After the name: PDO · B1.12"),
+    BEFORE("before", "Before the name: B1.12 · PDO");
+
+    companion object {
+        val DEFAULT = OFF
+        fun fromKey(key: String?) = entries.firstOrNull { it.key == key } ?: DEFAULT
+    }
+}
+
 /** User settings and sync status, stored in the app's private storage. */
 class AppSettings(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -36,6 +51,10 @@ class AppSettings(context: Context) {
     var range: SyncRange
         get() = SyncRange.fromKey(prefs.getString(KEY_RANGE, null))
         set(value) = prefs.edit().putString(KEY_RANGE, value.key).apply()
+
+    var roomInTitle: RoomInTitle
+        get() = RoomInTitle.fromKey(prefs.getString(KEY_ROOM_IN_TITLE, null))
+        set(value) = prefs.edit().putString(KEY_ROOM_IN_TITLE, value.key).apply()
 
     /** Epoch millis of the last finished sync, 0 if never. */
     var lastSyncAt: Long
@@ -64,6 +83,7 @@ class AppSettings(context: Context) {
         const val PREFS = "settings"
         const val KEY_AUTO_SYNC = "auto_sync"
         const val KEY_RANGE = "range"
+        const val KEY_ROOM_IN_TITLE = "room_in_title"
         const val KEY_LAST_SYNC_AT = "last_sync_at"
         const val KEY_LAST_SYNC_RESULT = "last_sync_result"
         const val KEY_SYNCED_UNTIL = "synced_until"

@@ -1,6 +1,7 @@
 package dev.eduartesync.calendar
 
 import dev.eduartesync.model.Lesson
+import dev.eduartesync.settings.RoomInTitle
 import dev.eduartesync.subjects.SubjectStyle
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -85,5 +86,16 @@ class SyncPlanTest {
         assertEquals("VERVALLEN – PDO", f.title)
         assertEquals("B1.12", f.location)
         assertEquals("Teacher: JAN", f.description)
+    }
+
+    @Test
+    fun `room can be put in the title`() {
+        val lesson = Lesson("x", "PDO-Expert", 0, 10, "B1.12")
+        val style = SubjectStyle("PDO-Expert", displayName = "PDO", emoji = "💻")
+        assertEquals("💻 PDO · B1.12", lesson.toFields(style, RoomInTitle.AFTER).title)
+        assertEquals("B1.12 · 💻 PDO", lesson.toFields(style, RoomInTitle.BEFORE).title)
+        assertEquals("VERVALLEN – PDO-Expert · B1.12", lesson.copy(cancelled = true).toFields(room = RoomInTitle.AFTER).title)
+        assertEquals("PDO-Expert", lesson.copy(location = " ").toFields(room = RoomInTitle.AFTER).title)
+        assertEquals("B1.12", lesson.toFields(style, RoomInTitle.AFTER).location)
     }
 }

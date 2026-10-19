@@ -100,6 +100,17 @@ class ScheduleChangesTest {
     }
 
     @Test
+    fun `room in the title is left out of the change text`() {
+        val old = ExistingEvent(1, "a", fields("PDO · O_235", 12, 8))
+        val moved = changes(listOf(old), mapOf("a" to fields("PDO · O_240", 12, 8, room = "O_240")))
+        assertEquals(listOf(ScheduleChange(Kind.CHANGED, "PDO Mon 12 Oct 08:00: room O_235 → O_240")), moved)
+        val added = changes(emptyList(), mapOf("a" to fields("O_235 · PDO", 12, 8)))
+        assertEquals(listOf(ScheduleChange(Kind.ADDED, "PDO Mon 12 Oct 08:00-09:00, O_235")), added)
+        // Turning the setting on or off only changes titles, which is not a schedule change.
+        assertEquals(emptyList<ScheduleChange>(), changes(listOf(old), mapOf("a" to fields("PDO", 12, 8))))
+    }
+
+    @Test
     fun `summary counts each kind`() {
         val list = listOf(
             ScheduleChange(Kind.ADDED, ""), ScheduleChange(Kind.ADDED, ""), ScheduleChange(Kind.MOVED, ""),

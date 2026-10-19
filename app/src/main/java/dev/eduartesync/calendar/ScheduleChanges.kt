@@ -44,7 +44,11 @@ fun describeChanges(
     fun day(f: EventFields) = DAY.format(Instant.ofEpochMilli(f.startMillis).atZone(zone))
     fun time(millis: Long) = TIME.format(Instant.ofEpochMilli(millis).atZone(zone))
     fun span(f: EventFields) = "${time(f.startMillis)}-${time(f.endMillis)}"
-    fun subject(f: EventFields) = f.title.removePrefix(CANCELLED_PREFIX)
+    // The title without the room the "room in title" setting may have added; the room is shown separately.
+    fun name(f: EventFields) = if (f.location.isEmpty()) f.title else f.title
+        .removeSuffix("$ROOM_SEPARATOR${f.location}")
+        .replaceFirst("${f.location}$ROOM_SEPARATOR", "")
+    fun subject(f: EventFields) = name(f).removePrefix(CANCELLED_PREFIX)
 
     for (new in added) {
         // A new time changes the lesson's key, so a move shows up as a removal plus an addition.
@@ -58,7 +62,7 @@ fun describeChanges(
         } else {
             changes += ScheduleChange(
                 ScheduleChange.Kind.ADDED,
-                "${new.title} ${day(new)} ${span(new)}${new.location.let { if (it.isEmpty()) "" else ", $it" }}",
+                "${name(new)} ${day(new)} ${span(new)}${new.location.let { if (it.isEmpty()) "" else ", $it" }}",
             )
         }
     }

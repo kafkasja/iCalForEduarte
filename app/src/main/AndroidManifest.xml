@@ -42,6 +42,43 @@
             android:exported="false"
             android:theme="@style/Theme.EduarteSync.Screen" />
 
+        <!-- Portal pages shown in the app, opened from the Meer tab -->
+        <activity
+            android:name=".ui.portal.PresenceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+        <activity
+            android:name=".ui.portal.StudyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+        <activity
+            android:name=".ui.portal.CoursesActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+        <activity
+            android:name=".ui.portal.GroupsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+        <activity
+            android:name=".ui.portal.DossierActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+        <activity
+            android:name=".ui.portal.DocumentsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EduarteSync.Screen" />
+
+        <!-- Hands a downloaded portal document (in the app's cache) to the PDF viewer -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.documents"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/document_paths" />
+        </provider>
+
         <!-- "Ignore" button on the schedule changes notification -->
         <receiver
             android:name=".sync.IgnoreChangesReceiver"

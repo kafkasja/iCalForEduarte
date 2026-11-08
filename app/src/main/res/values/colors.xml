@@ -15,4 +15,12 @@
     <color name="state_warning">#E8A100</color>
     <color name="state_error">#C62828</color>
     <color name="state_idle">#8A8A8A</color>
+
+    <!-- Attendance (Presentie screen): green from 90%, amber from 80%, red below. The bars use
+         the state_* colors above; these are for text and status labels on the light cards. -->
+    <color name="presence_warning_text">#8A6100</color>
+    <color name="presence_good_container">#C8E6C9</color>
+    <color name="presence_on_good_container">#1B5E20</color>
+    <color name="presence_warning_container">#FFE7A3</color>
+    <color name="presence_on_warning_container">#4D3800</color>
 </resources>

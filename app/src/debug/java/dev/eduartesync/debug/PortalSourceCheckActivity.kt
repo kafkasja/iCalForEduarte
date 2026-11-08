@@ -6,7 +6,12 @@ import android.util.Log
 import dev.eduartesync.Config
 import dev.eduartesync.portal.AttendanceSource
 import dev.eduartesync.portal.PortalGradesSource
+import dev.eduartesync.portal.PresencePeriod
+import dev.eduartesync.portal.PresenceSource
+import dev.eduartesync.portal.StudyRecordsSource
 import dev.eduartesync.portal.StudySource
+import dev.eduartesync.presence.absenceNumbers
+import dev.eduartesync.presence.presenceNumbers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -16,7 +21,7 @@ import java.time.LocalDate
  * Debug builds only. Runs one portal source on the device and logs a summary (tag
  * "PortalCheck"), to test the readers against the live portal:
  *
- *   adb shell am start -n dev.eduartesync/.debug.PortalSourceCheckActivity --es source grades|attendance|study
+ *   adb shell am start -n dev.eduartesync/.debug.PortalSourceCheckActivity --es source grades|attendance|study|presence|records
  */
 class PortalSourceCheckActivity : Activity() {
     private val scope = MainScope()
@@ -37,6 +42,23 @@ class PortalSourceCheckActivity : Activity() {
                         AttendanceSource(this@PortalSourceCheckActivity).fetch(today.minusMonths(2), today).let { a ->
                             log("attendance period=${a.from}..${a.to} totals=${a.totals.map { "${it.category}:${it.lessonHours}" }} entries=${a.entries.size}")
                         }
+                    }
+                    "presence" -> {
+                        // --es period SCHOOL_YEAR|THIS_MONTH|LAST_MONTH|THIS_WEEK|LAST_WEEK
+                        val period = intent.getStringExtra("period")?.let { PresencePeriod.valueOf(it) } ?: PresencePeriod.SCHOOL_YEAR
+                        val presence = PresenceSource(this@PortalSourceCheckActivity)
+                        presence.fetchOverall(period).let { o ->
+                            log("presence overall $period: ${presenceNumbers(o.presence)} absence=${absenceNumbers(o.absence)} subjectOptions=${o.filters.subjects.size} periods=${o.filters.periods.map { it.name }}")
+                            o.presence.plus(o.absence).forEach { log("chart ${it.title}: ${it.centerValue} ${it.centerText} ${it.items.map { i -> "${i.label}=${i.count}" }}") }
+                        }
+                        val loopStarted = System.currentTimeMillis()
+                        presence.fetchPerSubject(period) { log("per subject progress ${it.read}/${it.total}, ${it.subjects.size} with lessons") }.let { r ->
+                            log("per subject read=${r.read}/${r.total} withLessons=${r.subjects.size} in ${System.currentTimeMillis() - loopStarted} ms")
+                            r.subjects.forEach { log("subject value=${it.option.value} ${presenceNumbers(it.charts)}") }
+                        }
+                    }
+                    "records" -> StudyRecordsSource(this@PortalSourceCheckActivity).let { r ->
+                        log("dossier=${r.fetchDossier().size} documents=${r.fetchDocuments().size} subjects=${r.fetchSubjects().size} groups=${r.fetchGroups().map { it.size }}")
                     }
                     else -> StudySource(this@PortalSourceCheckActivity).fetch().let { s ->
                         log("study programmes=${s.programmes.map { it.name }} progressRows=${s.progress?.rows?.size}")

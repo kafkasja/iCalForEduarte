@@ -166,3 +166,98 @@ data class AttendanceEntry(
     /** The small note above the status, if any (e.g. a reported absence). */
     val reported: String?,
 )
+
+// ---- Presence charts (/presentie/presentie and /presentie/absentie) ----
+
+/**
+ * One donut chart card, e.g. "Presentie" with "137.0 uur present" in the middle and the legend
+ * "Afwezig (19)", "Aanwezig (137)".
+ */
+data class PresenceChart(
+    val title: String,
+    /** The text in the middle of the donut as given, e.g. "137.0" or "88%". */
+    val centerValue: String?,
+    /** [centerValue] as a number (without the "%"). */
+    val centerNumber: Double?,
+    /** The words under the middle number, e.g. "uur present". */
+    val centerText: String?,
+    val items: List<ChartItem>,
+) {
+    /**
+     * False when the portal would show its "Geen waarnemingen" label: every legend count is 0.
+     * That label is in the page also when there is data, so it can't be used to tell.
+     */
+    val hasData: Boolean
+        get() = if (items.isEmpty()) (centerNumber ?: 0.0) > 0.0 else items.any { it.count > 0.0 }
+
+    /** The count of the legend item whose label starts with [label] (ignoring case). */
+    fun count(label: String): Double? = items.firstOrNull { it.label.startsWith(label, ignoreCase = true) }?.count
+}
+
+/** A legend line: "Aanwezig (137)" -> label "Aanwezig", count 137. */
+data class ChartItem(val label: String, val count: Double)
+
+/**
+ * The "Periode" choices of the presence filter, with the value the portal's select posts.
+ * The portal also has "Stageperiode" (5), which is left out: it is about the internship.
+ */
+enum class PresencePeriod(val portalValue: String, val label: String, val phrase: String) {
+    SCHOOL_YEAR("0", "School year", "this school year"),
+    THIS_MONTH("1", "This month", "this month"),
+    LAST_MONTH("2", "Last month", "last month"),
+    THIS_WEEK("3", "This week", "this week"),
+    LAST_WEEK("4", "Last week", "last week"),
+}
+
+/** An option of a filter select: the value the portal posts and the name it shows. */
+data class FilterOption(val value: String, val name: String)
+
+/** The filter in the sidebar of the presence pages. */
+data class PresenceFilters(
+    /** "Vak": every subject, without the empty "Vak..." option. Names can repeat. */
+    val subjects: List<FilterOption>,
+    /** "Periode": Huidig schooljaar, Huidige maand, ... */
+    val periods: List<FilterOption>,
+)
+
+// ---- Study records (/studie/dossier, /studie/documenten, /studie/archief, /studie/groepen) ----
+
+/** A dossier entry, e.g. "B_Loopbaan (Voortgangsgesprek)" on 5 November by a teacher. */
+data class DossierEntry(
+    /** The whole title as shown. */
+    val title: String,
+    /** The part before the brackets, e.g. "B_Loopbaan"; null when there are no brackets. */
+    val category: String?,
+    /** The part in brackets, e.g. "Voortgangsgesprek"; the whole title when there are none. */
+    val subject: String,
+    val date: LocalDate?,
+    val author: String?,
+)
+
+/**
+ * A document from /studie/documenten. [url] is a link into the portal page it was read from,
+ * so it only works for a while; opening a document reads the page again for a fresh one.
+ */
+data class PortalDocument(
+    val type: String,
+    val date: LocalDate?,
+    /** File name as shown, e.g. "brief.pdf". */
+    val name: String,
+    val url: String?,
+)
+
+/** A subject from /studie/archief ("Vakken"). */
+data class PortalSubject(
+    val name: String,
+    val code: String?,
+    val abbreviation: String?,
+    val startDate: LocalDate?,
+    val endDate: LocalDate?,
+)
+
+/** A group/class from /studie/groepen, with the names of its students. */
+data class PortalGroup(
+    val name: String,
+    val size: Int?,
+    val members: List<String>,
+)

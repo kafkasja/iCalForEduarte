@@ -2,7 +2,6 @@ package dev.eduartesync.ui.more
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -14,8 +13,17 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.eduartesync.Config
 import dev.eduartesync.R
+import dev.eduartesync.portal.PresencePeriod
+import dev.eduartesync.presence.PresenceStore
+import dev.eduartesync.presence.formatPercent
 import dev.eduartesync.ui.MainActivity
 import dev.eduartesync.ui.SubjectsActivity
+import dev.eduartesync.ui.portal.CoursesActivity
+import dev.eduartesync.ui.portal.DocumentsActivity
+import dev.eduartesync.ui.portal.DossierActivity
+import dev.eduartesync.ui.portal.GroupsActivity
+import dev.eduartesync.ui.portal.PresenceActivity
+import dev.eduartesync.ui.portal.StudyActivity
 import dev.eduartesync.ui.showLoginLog
 import dev.eduartesync.update.UpdateChecker
 
@@ -35,14 +43,25 @@ class MoreFragment : Fragment(R.layout.fragment_more) {
 
     private class Section(val title: String, val entries: List<Entry>)
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val content = view.findViewById<LinearLayout>(R.id.content)
+    /**
+     * Drawn on every resume, not once: the Presentie row shows the last read percentage, which
+     * changes after visiting that screen (the tab stays alive in the background meanwhile).
+     */
+    override fun onResume() {
+        super.onResume()
+        val content = requireView().findViewById<LinearLayout>(R.id.content)
+        content.removeAllViews()
         sections().forEach { addSection(content, it) }
     }
 
     private fun sections() = listOf(
-        // Portal features (absences, messages, ...) get a row here once the app can read them.
         Section("Eduarte", listOf(
+            Entry(R.drawable.ic_event_busy, "Presentie", presenceSummary()) { start(PresenceActivity::class.java) },
+            Entry(R.drawable.ic_school, "Studie", "Your programmes and study points") { start(StudyActivity::class.java) },
+            Entry(R.drawable.ic_book, "Vakken", "Subjects and their codes") { start(CoursesActivity::class.java) },
+            Entry(R.drawable.ic_group, "Groepen", "Your classes and who is in them") { start(GroupsActivity::class.java) },
+            Entry(R.drawable.ic_assignment, "Dossier", "Notes from talks with your mentor") { start(DossierActivity::class.java) },
+            Entry(R.drawable.ic_description, "Documents", "Letters and forms from school") { start(DocumentsActivity::class.java) },
             Entry(R.drawable.ic_public, "Open Eduarte in browser", Config.PORTAL_HOST, external = true) { open(Config.PORTAL_URL) },
         )),
         Section("Rooster", listOf(
@@ -94,6 +113,16 @@ class MoreFragment : Fragment(R.layout.fragment_more) {
             .setNegativeButton("Close", null)
             .show()
     }
+
+    /** "88% present this school year" from the last read, or what the screen is about. */
+    private fun presenceSummary(): String {
+        val overview = PresenceStore(requireContext()).load(PresencePeriod.SCHOOL_YEAR)?.value
+        val percent = overview?.presence?.takeIf { it.hasData }?.percent
+            ?: return "Your attendance, also per subject"
+        return "${formatPercent(percent)} present ${PresencePeriod.SCHOOL_YEAR.phrase}"
+    }
+
+    private fun start(activity: Class<*>) = startActivity(Intent(requireContext(), activity))
 
     private fun open(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 }

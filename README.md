@@ -16,7 +16,11 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 - The app has three tabs:
   - **Rooster:** your lessons, one day per page. Swipe between days, tap a day in the week strip, or use the arrows and "Today" to jump. Saturday and Sunday only show up when they have lessons. Each lesson shows its time, room and teacher; free time between lessons and the current time are marked, cancelled lessons are struck through. Tap a lesson for the details and "Open in calendar". The line at the top says whether the rooster is up to date (tap it for details); pull down to sync. Days after the synced range say so, the range can be changed in the settings.
   - **Cijfers:** your grades, the newest first and per subject with the average. Not available yet; this tab is ready for when the app can read grades from Eduarte.
-  - **Meer:** Subjects, Settings, the login log, Eduarte in your browser, and the app version.
+  - **Meer:** your Eduarte pages in the app (below), Subjects, Settings, the login log, Eduarte in your browser, and the app version.
+- From the Meer tab you can open these Eduarte pages in the app. Each shows what it read last time right away (also offline), reads Eduarte again when that is more than an hour old, and pull down always reads again:
+  - **Presentie:** your attendance. A ring with the percentage you were present, the hours present and absent, and chips to choose the period (school year, this or last month, this or last week). Below that the excused (geoorloofd) and unexcused (ongeoorloofd) absence, every subject from the lowest percentage up (green from 90%, amber from 80%, red below), and the lessons of the last four weeks one by one. Reading per subject takes about a second per subject, so the totals show first and a line counts the subjects while they are read. The Meer tab shows the school year's percentage under "Presentie".
+  - **Studie:** your programmes (level, BOL/BBL, status, dates, location) and study points.
+  - **Vakken**, **Groepen** (tap a group to see who is in it), **Dossier** and **Documents**. Tapping a document downloads it with your Eduarte login and opens it in your PDF app.
 - The gear at the top opens the settings.
 - Syncs started from the widget's sync button or the Subjects page show the result as a short message, since there is no status line there.
 - It also syncs in the background about every 12 hours.
@@ -49,7 +53,7 @@ Clearing the app's storage in Android settings resets everything, including the 
 ## What the app does, step by step
 
 1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. By default the app never stores the password; Microsoft and Eduarte handle it on their own pages. With "Fill in my email and password" on, the app reads what you type on the Microsoft login page and stores it encrypted with a key in the Android Keystore, which never leaves the phone. It only fills it in on the Microsoft login page, and tries a saved password once per login screen. When Microsoft says the saved password is wrong, it stops filling it in (also during syncs) until you log in once with the right one, so a changed password doesn't get tried over and over and lock the account. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
-2. **What is stored.** The cookies that the login sets, a "logged in" flag, your settings and your subject list, all in the app's private storage on the phone. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
+2. **What is stored.** The cookies that the login sets, a "logged in" flag, your settings and your subject list, and the last read of the Eduarte pages shown in the app (grades, attendance, dossier, documents list, subjects, groups, programmes), all in the app's private storage on the phone. An opened document is kept in the app's cache until the next one is opened. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
 3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies. To see next week it enters a date in the agenda's date field, like you would. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
 4. **Writing the calendar.** The app creates one local calendar on the phone and only ever touches that calendar. Each event stores a key (date, start time, subject, group), so the next sync updates the event instead of adding a second one.
 5. **Network.** The app connects to the Eduarte portal and, when logging in, to the school's Microsoft login. While the settings page is open it also reads the list of releases from GitHub (a plain request that sends nothing about you). It has no server of its own, no analytics and no ads.
@@ -90,6 +94,10 @@ Clearing the app's storage in Android settings resets everything, including the 
 | `ui/SyncStatus.kt` | The plain-language sync status on the settings page and the Rooster tab |
 | `calendar/CalendarReader.kt` | Reads the lessons back from the calendar for the app and the widget |
 | `grades/` | Grades: the data, the stored copy, averages, and the (not yet built) fetcher |
+| `portal/` | Readers for the other portal pages: grades, attendance, presence charts (`PresenceSource`, also per subject), study, dossier, documents, subjects and groups |
+| `presence/` | Attendance: percentages per period and subject, colors, lesson statuses, and the stored copy |
+| `records/` | Stored copy of the dossier, documents, subjects, groups and programmes; document download |
+| `ui/portal/` | The Presentie, Studie, Vakken, Groepen, Dossier and Documents screens |
 | `settings/AppSettings.kt` | Stored settings and the sync range options |
 | `subjects/SubjectStore.kt` | The subject list with names, emoji and colors |
 | `update/UpdateChecker.kt` | Reads the releases from GitHub for the version section |

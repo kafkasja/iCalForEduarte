@@ -2,7 +2,10 @@ package dev.eduartesync.auth
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.graphics.Bitmap
 import android.os.Bundle
+import android.widget.CheckBox
+import android.widget.LinearLayout
 import android.view.KeyEvent
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
@@ -34,6 +37,10 @@ class LoginActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+                    MicrosoftLogin.describeSamlRequest(url)?.let { LoginLog.add(this@LoginActivity, "login: $it") }
+                }
+
                 override fun onPageFinished(view: WebView, url: String?) {
                     if (MicrosoftLogin.isMicrosoftPage(url)) LoginLog.page(this@LoginActivity, url)
                     if (!done && SessionManager.isPortalPage(url)) onLoggedIn()
@@ -55,9 +62,30 @@ class LoginActivity : Activity() {
         }
         if (fillLogin) webView.addJavascriptInterface(SavedLoginBridge(), MicrosoftLogin.BRIDGE)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
-        setContentView(webView)
+        setContentView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            fitsSystemWindows = true
+            addView(rememberBox())
+            addView(webView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+        })
         LoginLog.add(this, "login screen opened")
         webView.loadUrl(Config.PORTAL_URL)
+    }
+
+    /**
+     * "Remember my email and password", right on the login screen, so it can be turned on
+     * before the first login. Same setting as in settings, see [SavedLogin].
+     */
+    private fun rememberBox() = CheckBox(this).apply {
+        text = "Remember my email and password (encrypted on this phone), so a sync can log in again by itself"
+        isChecked = fillLogin
+        val pad = (12 * resources.displayMetrics.density).toInt()
+        setPadding(pad, pad, pad, pad)
+        setOnCheckedChangeListener { _, on ->
+            SavedLogin.setEnabled(this@LoginActivity, on)
+            // Takes effect on the next login page; reload so the page picks it up.
+            recreate()
+        }
     }
 
     private fun fillScript() = MicrosoftLogin.fillScript(

@@ -12,11 +12,16 @@ import java.time.LocalDate
  * Reads the schedule from the Talnet Eduarte student portal's agenda page. The page opens on
  * the current week; other weeks are shown by entering a date in the agenda's date field.
  */
-class EduarteSource(private val context: Context) {
+class EduarteSource(
+    private val context: Context,
+    /** The user started this sync and is around to approve a sign-in, see [PortalBrowser]. */
+    private val interactive: Boolean = false,
+    private val onApproveSignIn: (number: String?) -> Unit = {},
+) {
 
     /** Lessons starting from [from] up to and including [to]. */
     suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> {
-        val browser = withContext(Dispatchers.Main) { PortalBrowser(context) }
+        val browser = withContext(Dispatchers.Main) { PortalBrowser(context, interactive, onApproveSignIn) }
         try {
             var page = parse(withContext(Dispatchers.Main) { browser.open(AGENDA_URL) })
             val lessons = page.lessons.toMutableList()

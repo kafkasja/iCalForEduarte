@@ -15,12 +15,25 @@ import dev.eduartesync.Config
 object SessionManager {
     private const val PREFS = "session"
     private const val KEY_LOGGED_IN = "logged_in"
+    private const val KEY_NEEDS_AUTHENTICATOR = "background_needs_authenticator"
 
     fun isLoggedIn(context: Context): Boolean =
         prefs(context).getBoolean(KEY_LOGGED_IN, false)
 
     fun setLoggedIn(context: Context, loggedIn: Boolean) {
         prefs(context).edit().putBoolean(KEY_LOGGED_IN, loggedIn).apply()
+    }
+
+    /**
+     * Set when a background sync found that renewing the login needs the Authenticator, even
+     * with the saved password. Background syncs then stop trying, so the user never gets an
+     * Authenticator request they didn't ask for. Cleared once a renewal works without it.
+     */
+    fun backgroundNeedsAuthenticator(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_NEEDS_AUTHENTICATOR, false)
+
+    fun setBackgroundNeedsAuthenticator(context: Context, needed: Boolean) {
+        prefs(context).edit().putBoolean(KEY_NEEDS_AUTHENTICATOR, needed).apply()
     }
 
     /** True once the OAuth flow has landed back on the portal itself (not the callback). */
@@ -36,6 +49,7 @@ object SessionManager {
         CookieManager.getInstance().flush()
         WebStorage.getInstance().deleteAllData()
         setLoggedIn(context, false)
+        setBackgroundNeedsAuthenticator(context, false)
     }
 
     private fun prefs(context: Context) =

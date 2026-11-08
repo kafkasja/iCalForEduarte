@@ -1,7 +1,9 @@
 package dev.eduartesync.sync
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -23,15 +25,17 @@ object SyncScheduler {
 
     /**
      * Turns the background sync (every 12 hours) on or off to match the setting.
-     * KEEP: calling this on every app open doesn't reset the timer.
+     * UPDATE: calling this on every app open doesn't reset the timer.
      */
     fun updatePeriodic(context: Context) {
         if (!AppSettings(context).autoSync) return cancelPeriodic(context)
         val request = PeriodicWorkRequestBuilder<SyncWorker>(Config.PERIODIC_SYNC_HOURS, TimeUnit.HOURS)
             .setConstraints(needsNetwork)
+            // When Eduarte didn't load, try again after a few minutes instead of waiting hours.
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 2, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+            .enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     fun cancelPeriodic(context: Context) {
@@ -42,6 +46,8 @@ object SyncScheduler {
     fun syncNow(context: Context) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(needsNetwork)
+            // Start right away, also when Android is saving battery for background apps.
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .setInputData(workDataOf(SyncWorker.KEY_MANUAL to true))
             .build()
         WorkManager.getInstance(context)

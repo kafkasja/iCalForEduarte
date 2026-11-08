@@ -2,7 +2,9 @@ package dev.eduartesync.source
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
+import android.os.SystemClock
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -10,6 +12,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import dev.eduartesync.auth.LoginLog
 import dev.eduartesync.auth.MicrosoftLogin
+import dev.eduartesync.auth.MicrosoftLogin.State
+import dev.eduartesync.auth.SavedLogin
 import dev.eduartesync.auth.SessionManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -23,20 +27,36 @@ import kotlin.coroutines.resume
 
 /**
  * Hidden WebView that browses the portal like a normal browser, using the session from the
- * in-app login. If the session expired, the portal sends it through the Microsoft login, which
- * completes on its own as long as the Microsoft session is still valid.
+ * in-app login. When Eduarte's session ran out, the portal sends it through the school's
+ * Microsoft login. That login asks for the password again, so it is filled in when the user
+ * chose to save it ([SavedLogin]).
+ *
+ * If Microsoft then also wants the Authenticator:
+ * - [interactive] (the user tapped the app icon): [onApproveSignIn] is called with the number
+ *   to tap in the Authenticator (or null), and the sign-in is given a few minutes.
+ * - background sync: it stops right away, so the user never gets an Authenticator request
+ *   they didn't ask for, and remembers that background renewal doesn't work for this account.
  *
  * Must be created and used on the main thread.
  */
 @SuppressLint("SetJavaScriptEnabled")
-class PortalBrowser(context: Context) {
+class PortalBrowser(
+    context: Context,
+    private val interactive: Boolean = false,
+    private val onApproveSignIn: (number: String?) -> Unit = {},
+) {
     private val appContext = context.applicationContext
     private var onPageFinished: ((String) -> Unit)? = null
+    private var onState: ((MicrosoftLogin.StateMessage) -> Unit)? = null
 
     private val webView = WebView(appContext).apply {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                MicrosoftLogin.describeSamlRequest(url)?.let { LoginLog.add(appContext, "sync: $it") }
+            }
+
             override fun onPageFinished(view: WebView, url: String) {
                 onPageFinished?.invoke(url)
             }
@@ -45,7 +65,9 @@ class PortalBrowser(context: Context) {
             override fun onConsoleMessage(message: ConsoleMessage): Boolean {
                 val text = message.message()
                 if (!text.startsWith(LoginLog.CONSOLE_PREFIX)) return false
-                LoginLog.add(appContext, text.removePrefix(LoginLog.CONSOLE_PREFIX))
+                val content = text.removePrefix(LoginLog.CONSOLE_PREFIX)
+                LoginLog.add(appContext, "sync: $content")
+                MicrosoftLogin.parseState(content)?.let { onState?.invoke(it) }
                 return true
             }
         }
@@ -55,20 +77,52 @@ class PortalBrowser(context: Context) {
     /** Opens [url] and returns the final URL and HTML once an agenda page has loaded. */
     suspend fun open(url: String): Pair<String, String> {
         val landed = CompletableDeferred<String>()
+        var failure: Throwable? = null
         var reopened = false
         var renewing = false
+        var passwordTried = false
+        var passwordPages = 0
+        var lastState: State? = null
+        var deadline = SystemClock.elapsedRealtime() + TIMEOUT_MS
+        val fillLogin = SavedLogin.password(appContext) != null &&
+            (interactive || !SessionManager.backgroundNeedsAuthenticator(appContext))
+        val fail = { e: Throwable -> if (failure == null) failure = e }
+
+        onState = { message ->
+            lastState = message.state
+            when (message.state) {
+                // The saved password is tried once: a second password page means it didn't work.
+                State.EMAIL -> if (!fillLogin) fail(SessionExpiredException(Reason.PASSWORD))
+                State.PASSWORD -> if (!fillLogin || ++passwordPages > 1) fail(SessionExpiredException(Reason.PASSWORD))
+                State.MFA_NUMBER, State.MFA_APPROVE, State.MFA_CODE -> if (interactive) {
+                    // Approving takes a moment: give the user a few minutes.
+                    deadline = SystemClock.elapsedRealtime() + APPROVE_TIMEOUT_MS
+                    if (message.state != State.MFA_CODE) onApproveSignIn(message.detail.ifEmpty { null })
+                    else fail(SessionExpiredException(Reason.AUTHENTICATOR))
+                } else {
+                    SessionManager.setBackgroundNeedsAuthenticator(appContext, true)
+                    LoginLog.add(appContext, "sync: Microsoft wants the Authenticator; not renewing in the background anymore")
+                    fail(SessionExpiredException(Reason.AUTHENTICATOR))
+                }
+                State.ERROR -> fail(SessionExpiredException(Reason.ERROR, message.detail))
+            }
+        }
         onPageFinished = { loaded ->
             when {
                 isAgendaPage(loaded) -> landed.complete(loaded)
-                // Session renewal stopped at "Stay signed in?" or "Pick an account": click through.
                 MicrosoftLogin.isMicrosoftPage(loaded) -> {
                     if (!renewing) {
                         renewing = true
-                        LoginLog.add(appContext, "sync: session renewal through Microsoft")
+                        LoginLog.add(appContext, "sync: session renewal through Microsoft" + if (interactive) " (app icon)" else " (background)")
                         LoginLog.microsoftCookies(appContext)
                     }
                     LoginLog.page(appContext, loaded)
                     webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
+                    if (fillLogin) {
+                        val password = if (passwordTried) null else SavedLogin.password(appContext)
+                        if (password != null) passwordTried = true
+                        webView.evaluateJavascript(MicrosoftLogin.fillScript(SavedLogin.email(appContext), password), null)
+                    }
                 }
                 // Came back from a session renewal on the home page: open the agenda again.
                 SessionManager.isPortalPage(loaded) && !reopened -> {
@@ -78,20 +132,38 @@ class PortalBrowser(context: Context) {
             }
         }
         webView.loadUrl(url)
-        val finalUrl = withTimeoutOrNull(TIMEOUT_MS) { landed.await() }
+
+        // Wait for the agenda, a reason to give up, or the deadline (which approving moves).
+        var finalUrl: String? = null
+        while (finalUrl == null && failure == null && SystemClock.elapsedRealtime() < deadline) {
+            finalUrl = withTimeoutOrNull(POLL_MS) { landed.await() }
+        }
         onPageFinished = null
+        onState = null
 
         if (finalUrl == null) {
-            // Stuck on the Microsoft or Eduarte login page: the user has to log in again.
-            if (!SessionManager.isPortalPage(webView.url)) {
-                LoginLog.add(appContext, "sync: login expired, stuck on this page:")
+            webView.stopLoading()
+            failure?.let {
+                LoginLog.add(appContext, "sync: login needed, stopped on this page:")
                 LoginLog.page(appContext, webView.url)
-                throw SessionExpiredException()
+                throw it
             }
+            // Stuck on the Microsoft or Eduarte login page: the user has to log in again.
+            if (!SessionManager.isPortalPage(webView.url) && lastState != null) {
+                LoginLog.add(appContext, "sync: login expired (last step: ${lastState?.key}), stuck on this page:")
+                LoginLog.page(appContext, webView.url)
+                throw SessionExpiredException(if (lastState == State.PASSWORD) Reason.PASSWORD else Reason.AUTHENTICATOR)
+            }
+            LoginLog.add(appContext, "sync: timed out on this page:")
+            LoginLog.page(appContext, webView.url)
             throw IOException("Eduarte did not load the agenda in time")
         }
         CookieManager.getInstance().flush()
-        if (renewing) LoginLog.add(appContext, "sync: session renewed without the user")
+        if (renewing) {
+            LoginLog.add(appContext, "sync: session renewed" + if (passwordTried) " with the saved password" else " without the user")
+            // It worked: a later background renewal may try again.
+            if (!interactive || lastState == null) SessionManager.setBackgroundNeedsAuthenticator(appContext, false)
+        }
         return finalUrl to evaluate(PAGE_HTML)
     }
 
@@ -143,6 +215,7 @@ class PortalBrowser(context: Context) {
 
     private companion object {
         const val TIMEOUT_MS = 45_000L
+        const val APPROVE_TIMEOUT_MS = 180_000L
         const val POLL_MS = 250L
         const val SETTLE_MS = 750L
         const val PAGE_HTML = "document.documentElement.outerHTML"
@@ -151,5 +224,15 @@ class PortalBrowser(context: Context) {
     }
 }
 
-/** The login is gone: Microsoft wants the user to sign in again. */
-class SessionExpiredException : Exception("Eduarte session expired")
+/** The login is gone: Microsoft wants the user to sign in again. [reason] says what for. */
+class SessionExpiredException(val reason: Reason, val detail: String = "") :
+    Exception("Eduarte session expired: ${reason.name.lowercase()}" + if (detail.isNotEmpty()) " ($detail)" else "")
+
+enum class Reason {
+    /** Microsoft asked for the password, and none is saved (or the saved one didn't work). */
+    PASSWORD,
+    /** The password was fine but Microsoft wants the Authenticator, which needs the user. */
+    AUTHENTICATOR,
+    /** Microsoft showed an error, like a wrong password. */
+    ERROR,
+}

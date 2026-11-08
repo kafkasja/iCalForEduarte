@@ -12,6 +12,9 @@ import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
+import dev.eduartesync.auth.SavedLogin
+import dev.eduartesync.source.Reason
+import androidx.work.ForegroundInfo
 import dev.eduartesync.calendar.ScheduleChange
 import dev.eduartesync.calendar.summarize
 import dev.eduartesync.ui.MainActivity
@@ -26,14 +29,30 @@ object Notifier {
     private const val CHANNEL_CHANGES = "changes"
     private const val ID_PROBLEM = 1
     private const val ID_CHANGES = 2
+    private const val ID_APPROVE = 3
+    private const val ID_SYNCING = 4
+    private const val CHANNEL_SIGN_IN = "sign_in"
+    private const val CHANNEL_SYNCING = "syncing"
     private const val MAX_LINES = 6
 
-    fun loginRequired(context: Context) = show(
+    fun loginRequired(context: Context, reason: Reason? = null) = show(
         context, CHANNEL_PROBLEMS, ID_PROBLEM,
         title = "Log in to Eduarte again",
-        text = "Your Eduarte login has expired. Tap to log in, your schedule syncs right after.",
+        text = loginRequiredText(context, reason) + " Tap to log in, your schedule syncs right after.",
         intent = Intent(context, LoginActivity::class.java),
     )
+
+    /** Why the user has to log in, in plain words. */
+    fun loginRequiredText(context: Context, reason: Reason?): String = when (reason) {
+        Reason.PASSWORD -> if (SavedLogin.isEnabled(context)) {
+            "Microsoft asked for your password and the saved one didn't work (or none is saved yet)."
+        } else {
+            "Microsoft asks for your password again. Turn on \"Fill in my email and password\" in settings to have it filled in for you."
+        }
+        Reason.AUTHENTICATOR -> "Microsoft wants you to approve the sign-in in the Authenticator."
+        Reason.ERROR -> "Microsoft showed an error while signing in."
+        null -> "Your Eduarte login has expired."
+    }
 
     fun syncFailed(context: Context, problem: SyncProblem) = show(
         context, CHANNEL_PROBLEMS, ID_PROBLEM,
@@ -41,6 +60,30 @@ object Notifier {
         text = "${problem.message}\n\nDetails: ${problem.details}",
         intent = Intent(context, MainActivity::class.java),
     )
+
+    /** A sync the user started waits for them to approve the sign-in in the Authenticator. */
+    fun approveSignIn(context: Context, number: String?) = show(
+        context, CHANNEL_SIGN_IN, ID_APPROVE,
+        title = if (number != null) "Tap $number in the Authenticator" else "Approve the sign-in in the Authenticator",
+        text = "Microsoft wants to confirm it's you before Eduarte Sync can read your schedule. " +
+            "The sync finishes by itself once you approve.",
+        intent = Intent(context, MainActivity::class.java),
+        autoCancel = false,
+    )
+
+    fun clearApproveSignIn(context: Context) =
+        context.getSystemService(NotificationManager::class.java).cancel(ID_APPROVE)
+
+    /** Shown only on Android 11 and older while a manual sync runs as a foreground job. */
+    fun syncingForegroundInfo(context: Context): ForegroundInfo {
+        ensureChannels(context)
+        val notification = NotificationCompat.Builder(context, CHANNEL_SYNCING)
+            .setSmallIcon(R.drawable.ic_stat_sync)
+            .setContentTitle("Syncing schedule")
+            .setOngoing(true)
+            .build()
+        return ForegroundInfo(ID_SYNCING, notification)
+    }
 
     fun clearProblem(context: Context) =
         context.getSystemService(NotificationManager::class.java).cancel(ID_PROBLEM)
@@ -85,6 +128,16 @@ object Notifier {
             }
         )
         manager.createNotificationChannel(changesChannel(NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_SIGN_IN, "Approve sign-in", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "When a sync you started needs you to approve the sign-in in the Authenticator"
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_SYNCING, "Syncing", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Only on older Android versions, while a sync you started runs"
+            }
+        )
     }
 
     /** Whether schedule change notifications can show up at all. */
@@ -112,6 +165,7 @@ object Notifier {
         title: String,
         text: String,
         intent: Intent,
+        autoCancel: Boolean = true,
         extra: (NotificationCompat.Builder) -> Unit = {},
     ) {
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -131,7 +185,7 @@ object Notifier {
             .setContentText(text.lineSequence().first())
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pending)
-            .setAutoCancel(true)
+            .setAutoCancel(autoCancel)
         extra(builder)
         manager.notify(id, builder.build())
     }

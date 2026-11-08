@@ -117,10 +117,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         )
     }
 
-    /** Saves the result for the settings page, and shows it as a toast for a manual sync. */
+    /**
+     * Saves the result for the settings page, and shows it as a toast for a manual sync, unless
+     * it was started from inside the app, which shows the result itself.
+     */
     private fun report(message: String) {
         saveResult(message)
-        if (manual) toast(message)
+        if (manual && !inputData.getBoolean(KEY_QUIET, false)) toast(message)
     }
 
     private fun saveResult(message: String) {
@@ -138,6 +141,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     companion object {
         const val KEY_MANUAL = "manual"
+        const val KEY_QUIET = "quiet"
         private val syncLock = Mutex()
         private const val TAG = "EduarteSync"
         private const val MAX_RETRIES = 3

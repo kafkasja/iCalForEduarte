@@ -48,8 +48,8 @@ fun Lesson.toFields(style: SubjectStyle? = null, room: RoomInTitle = RoomInTitle
         title = if (cancelled) "$CANCELLED_PREFIX$name" else name,
         location = location.orEmpty(),
         description = listOfNotNull(
-            teacher?.let { "Teacher: $it" },
-            group?.let { "Group: $it" },
+            teacher?.let { "$TEACHER_LABEL$it" },
+            group?.let { "$GROUP_LABEL$it" },
         ).joinToString("\n"),
         startMillis = startMillis,
         endMillis = endMillis,
@@ -59,6 +59,10 @@ fun Lesson.toFields(style: SubjectStyle? = null, room: RoomInTitle = RoomInTitle
 
 const val CANCELLED_PREFIX = "VERVALLEN – "
 const val ROOM_SEPARATOR = " · "
+
+/** Line prefixes in the event description; [readEventText] reads them back for the app. */
+const val TEACHER_LABEL = "Teacher: "
+const val GROUP_LABEL = "Group: "
 
 /**
  * Works out what to change so the calendar matches [wanted] (lesson id -> fields).

@@ -1,7 +1,5 @@
 package dev.eduartesync.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
@@ -12,14 +10,11 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import dev.eduartesync.Config
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
-import dev.eduartesync.auth.LoginLog
 import dev.eduartesync.auth.SavedLogin
 import dev.eduartesync.auth.SessionManager
 import dev.eduartesync.calendar.CalendarWriter
@@ -33,15 +28,14 @@ import dev.eduartesync.update.UpdateChecker
 import java.time.LocalDate
 
 /**
- * Opened by tapping the app icon twice quickly. A status card at the top answers "is my
- * calendar up to date?", the settings are grouped in cards below it.
+ * Opened from the gear in the app's top bar or the Meer tab. A status card at the top answers
+ * "is my calendar up to date?", the settings are grouped in cards below it.
  */
 class SettingsActivity : AppCompatActivity() {
     private lateinit var settings: AppSettings
 
     // What WorkManager says about the manual and the background sync.
-    private var manualWork: List<WorkInfo> = emptyList()
-    private var periodicWork: List<WorkInfo> = emptyList()
+    private var work = SyncWork(running = false, waiting = false, nextPeriodicAt = null)
 
     // Refreshes the status when a sync finishes while this screen is open.
     private val statusListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
@@ -52,22 +46,17 @@ class SettingsActivity : AppCompatActivity() {
         prepareScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        applyScreenInsets(showBack = false)
-        title = "Eduarte Sync"
+        applyScreenInsets(showBack = true)
+        title = "Settings"
         settings = AppSettings(this)
 
-        findViewById<View>(R.id.syncNow).setOnClickListener { SyncScheduler.syncNow(this) }
+        findViewById<View>(R.id.syncNow).setOnClickListener { SyncScheduler.syncNow(this, quiet = true) }
         findViewById<View>(R.id.logIn).setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
         }
 
-        val workManager = WorkManager.getInstance(this)
-        workManager.getWorkInfosForUniqueWorkLiveData(SyncScheduler.MANUAL_WORK).observe(this) {
-            manualWork = it
-            showStatus()
-        }
-        workManager.getWorkInfosForUniqueWorkLiveData(SyncScheduler.PERIODIC_WORK).observe(this) {
-            periodicWork = it
+        observeSyncWork(this, this) {
+            work = it
             showStatus()
         }
 
@@ -87,7 +76,7 @@ class SettingsActivity : AppCompatActivity() {
                 if (option == settings.range) return@choose
                 settings.range = option
                 showChoices()
-                SyncScheduler.syncNow(this)
+                SyncScheduler.syncNow(this, quiet = true)
             }
         }
 
@@ -97,7 +86,7 @@ class SettingsActivity : AppCompatActivity() {
                 if (option == settings.roomInTitle) return@choose
                 settings.roomInTitle = option
                 showChoices()
-                SyncScheduler.syncNow(this)
+                SyncScheduler.syncNow(this, quiet = true)
             }
         }
         showChoices()
@@ -133,7 +122,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.saveLoginRow).setOnClickListener { saveLogin.toggle() }
 
-        findViewById<View>(R.id.loginLog).setOnClickListener { showLoginLog() }
+        findViewById<View>(R.id.loginLog).setOnClickListener { showLoginLog(this) }
 
         findViewById<View>(R.id.subjects).setOnClickListener {
             startActivity(Intent(this, SubjectsActivity::class.java))
@@ -195,21 +184,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun showLoginLog() {
-        val log = LoginLog.text(this).ifEmpty { "Nothing logged yet." }
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Login log")
-            .setMessage(log)
-            .setPositiveButton("Copy") { _, _ ->
-                val clipboard = getSystemService(ClipboardManager::class.java)
-                clipboard.setPrimaryClip(ClipData.newPlainText("Login log", log))
-                toast("Copied")
-            }
-            .setNeutralButton("Clear") { _, _ -> LoginLog.clear(this) }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
     private fun open(url: String) = startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
     override fun onResume() {
@@ -228,15 +202,12 @@ class SettingsActivity : AppCompatActivity() {
     /** The status card: state dot, headline, which days are covered and the last result. */
     private fun showStatus() {
         val now = System.currentTimeMillis()
-        val manual = manualWork.firstOrNull { !it.state.isFinished }
-        val periodic = periodicWork.firstOrNull { !it.state.isFinished }
-        val running = manual?.state == WorkInfo.State.RUNNING || periodic?.state == WorkInfo.State.RUNNING
         val summary = SyncStatus.summarize(
             loggedIn = SessionManager.isLoggedIn(this),
             lastSyncAt = settings.lastSyncAt,
             lastResult = settings.lastSyncResult,
-            running = running,
-            waiting = manual != null && !running,
+            running = work.running,
+            waiting = work.waiting,
             now = now,
         )
 
@@ -255,8 +226,7 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.nextSync).text = when {
             !settings.autoSync -> "Automatic sync is off"
-            periodic != null && periodic.state == WorkInfo.State.ENQUEUED && periodic.nextScheduleTimeMillis != Long.MAX_VALUE ->
-                SyncStatus.nextSync(periodic.nextScheduleTimeMillis, now, Config.ZONE)
+            work.nextPeriodicAt != null -> SyncStatus.nextSync(work.nextPeriodicAt!!, now, Config.ZONE)
             else -> "Syncs automatically about every 12 hours"
         }
 
@@ -273,13 +243,6 @@ class SettingsActivity : AppCompatActivity() {
             isEnabled = !busy
             text = if (busy) "Syncing…" else "Sync now"
         }
-    }
-
-    private fun stateColor(state: SyncState) = when (state) {
-        SyncState.OK -> R.color.state_ok
-        SyncState.STALE, SyncState.WAITING -> R.color.state_warning
-        SyncState.FAILED, SyncState.LOGIN_NEEDED -> R.color.state_error
-        SyncState.NEVER, SyncState.SYNCING -> R.color.state_idle
     }
 
     private fun choose(title: String, labels: List<String>, selected: Int, onChoose: (Int) -> Unit) {

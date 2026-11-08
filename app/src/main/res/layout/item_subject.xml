@@ -1,33 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- One subject on the Subjects page: color circle with the emoji, name, original name. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="center_vertical"
-    android:minHeight="64dp"
-    android:orientation="horizontal"
-    android:paddingHorizontal="20dp">
+    style="@style/Row"
+    android:minHeight="72dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
 
-    <View
-        android:id="@+id/color"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="16dp" />
+    <TextView
+        android:id="@+id/swatch"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="16dp"
+        android:gravity="center"
+        android:importantForAccessibility="no"
+        android:textColor="#FFFFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold" />
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+    <LinearLayout style="@style/RowText">
 
         <TextView
             android:id="@+id/title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="16sp" />
+            style="@style/RowTitle"
+            android:ellipsize="end"
+            android:maxLines="1" />
 
         <TextView
             android:id="@+id/original"
-            style="@style/Hint"
-            android:paddingBottom="0dp" />
+            style="@style/RowSummary"
+            android:ellipsize="end"
+            android:maxLines="1" />
     </LinearLayout>
+
+    <ImageView style="@style/RowChevron" />
 </LinearLayout>

@@ -21,15 +21,23 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 
 ## Settings
 
-- **Version:** shows your version and, if there is one, a newer version to download. "All versions" lists every release, so you can also go back to an older one (uninstall first, Android doesn't allow installing an older version over a newer one). There are no update notifications.
-- **Status:** when the last sync was and what it did, plus a "Sync now" button.
-- **Sync:** turn the automatic sync off (tapping the icon still syncs), and choose how far ahead to sync: today only, rest of this week, through next week, or as far as possible (8 weeks).
-- **Notifications:** shows whether change notifications are on, with a shortcut to Android's settings for them.
-- **Clear calendar:** removes the "Eduarte rooster" calendar and everything in it. The next sync brings it back.
-- **Room in the event name:** puts the room before or after the lesson name, e.g. "PDO · B1.12". Lock screens and widgets (like Samsung's) often show only the name and time of an event, so this is the way to see the room there. Off by default; changing it syncs right away.
-- **Log out / switch account:** removes the login, and a saved email and password, from the phone.
-- **Fill in my email and password:** off by default. When on, the email and password you type at the next login are saved, and every login after that fills them in, so only the Authenticator is left. Turning it off deletes them.
-- **Subjects (beta):** every subject that showed up in your schedule stays in this list until you remove it. Give each one its own name, emoji and color, e.g. "PDO-Expert" becomes "💻 PDO".
+The page starts with a status card that tells you at a glance whether your calendar is up to date: a colored dot (green: up to date, yellow: syncing or not synced for a while, red: failed or logged out), when it last synced, which days the calendar covers, when the next automatic sync is, and the message of the last sync. Its button is "Sync now", or "Log in" when the login has expired.
+
+The settings below it are grouped:
+
+- **Calendar**
+  - **How far ahead:** today only, rest of this week, through next week, or as far as possible (8 weeks). Changing it syncs right away.
+  - **Room in the event name:** puts the room before or after the lesson name, e.g. "PDO · B1.12". Lock screens and widgets (like Samsung's) often show only the name and time of an event, so this is the way to see the room there. Off by default; changing it syncs right away.
+  - **Subjects (beta):** every subject that showed up in your schedule stays in this list until you remove it. Give each one its own name, emoji and color, e.g. "PDO-Expert" becomes "💻 PDO".
+  - **Clear calendar:** removes the "Eduarte rooster" calendar and everything in it. The next sync brings it back.
+- **Background sync & notifications**
+  - **Sync automatically:** turn the sync every 12 hours off (tapping the icon still syncs).
+  - **Schedule change notifications:** shows whether they are on, and opens Android's settings for them.
+- **Account**
+  - **Fill in my email and password:** off by default. When on, the email and password you type at the next login are saved, and every login after that fills them in, so only the Authenticator is left. Turning it off deletes them.
+  - **Login log:** what happened during the last logins, to find out why the login expires. No passwords or codes are in it.
+  - **Log out / switch account:** removes the login, and a saved email and password, from the phone.
+- **About:** your version and, if there is one, a newer version to download. "All versions" lists every release, so you can also go back to an older one (uninstall first, Android doesn't allow installing an older version over a newer one). There are no update notifications.
 
 Clearing the app's storage in Android settings resets everything, including the subject list.
 
@@ -71,6 +79,7 @@ Clearing the app's storage in Android settings resets everything, including the 
 | `ui/MainActivity.kt` | What happens when you tap the app icon (once: sync, twice: settings) |
 | `ui/SettingsActivity.kt` | Settings page |
 | `ui/SubjectsActivity.kt` | Subjects page (beta) |
+| `ui/SyncStatus.kt` | The plain-language status at the top of the settings page |
 | `settings/AppSettings.kt` | Stored settings and the sync range options |
 | `subjects/SubjectStore.kt` | The subject list with names, emoji and colors |
 | `update/UpdateChecker.kt` | Reads the releases from GitHub for the version section |

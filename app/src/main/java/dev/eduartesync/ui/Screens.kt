@@ -1,0 +1,46 @@
+package dev.eduartesync.ui
+
+import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.color.DynamicColors
+import dev.eduartesync.R
+
+/**
+ * Shared setup for the Settings and Subjects screens. Call before super.onCreate():
+ * wallpaper colors on Android 12+ and drawing behind the system bars, which Android 15+ does
+ * anyway for apps targeting it.
+ */
+fun AppCompatActivity.prepareScreen() {
+    DynamicColors.applyToActivityIfAvailable(this)
+    enableEdgeToEdge()
+}
+
+/**
+ * Keeps the content out from under the status bar, navigation bar and camera cutout: the top bar
+ * gets the top inset (its background still runs behind the status bar), the scrolling content
+ * the bottom inset, so the last item can scroll above the navigation bar.
+ */
+fun AppCompatActivity.applyScreenInsets(showBack: Boolean) {
+    val root = findViewById<View>(R.id.root)
+    val appBar = findViewById<View>(R.id.appBar)
+    val scroll = findViewById<View>(R.id.scroll)
+    val baseBottom = scroll.paddingBottom
+    ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        appBar.setPadding(bars.left, bars.top, bars.right, 0)
+        scroll.setPadding(bars.left, scroll.paddingTop, bars.right, baseBottom + bars.bottom)
+        WindowInsetsCompat.CONSUMED
+    }
+
+    if (showBack) {
+        findViewById<MaterialToolbar>(R.id.toolbar).apply {
+            setNavigationIcon(R.drawable.ic_arrow_back)
+            setNavigationContentDescription("Back")
+            setNavigationOnClickListener { finish() }
+        }
+    }
+}

@@ -90,7 +90,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         // Changes are only reported for days the previous sync already covered.
         val reportUntil = settings.syncedUntil?.let { minOf(it, to) }
         val changes = try {
-            CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil, settings.roomInTitle)
+            CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil, settings.roomInTitle, settings.shortNames)
         } catch (e: Exception) {
             // E.g. calendar access was taken away during the sync, or the calendar app's storage failed.
             Log.w(TAG, "Writing the calendar failed", e)

@@ -56,6 +56,11 @@ class AppSettings(context: Context) {
         get() = RoomInTitle.fromKey(prefs.getString(KEY_ROOM_IN_TITLE, null))
         set(value) = prefs.edit().putString(KEY_ROOM_IN_TITLE, value.key).apply()
 
+    /** Shorter lesson names in the calendar, see [dev.eduartesync.calendar.ShortNames]. On by default. */
+    var shortNames: Boolean
+        get() = prefs.getBoolean(KEY_SHORT_NAMES, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHORT_NAMES, value).apply()
+
     /** Epoch millis of the last finished sync, 0 if never. */
     var lastSyncAt: Long
         get() = prefs.getLong(KEY_LAST_SYNC_AT, 0)
@@ -84,6 +89,7 @@ class AppSettings(context: Context) {
         const val KEY_AUTO_SYNC = "auto_sync"
         const val KEY_RANGE = "range"
         const val KEY_ROOM_IN_TITLE = "room_in_title"
+        const val KEY_SHORT_NAMES = "short_names"
         const val KEY_LAST_SYNC_AT = "last_sync_at"
         const val KEY_LAST_SYNC_RESULT = "last_sync_result"
         const val KEY_SYNCED_UNTIL = "synced_until"

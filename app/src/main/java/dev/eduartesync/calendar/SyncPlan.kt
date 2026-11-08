@@ -31,12 +31,13 @@ data class SyncPlan(
 
 /**
  * How a lesson looks in the calendar. [style] is the user's customization from the Subjects page,
- * [room] says whether the room is also put in the title.
+ * [room] says whether the room is also put in the title, [short] whether the name is shortened
+ * (only when the user didn't name the subject themselves).
  */
-fun Lesson.toFields(style: SubjectStyle? = null, room: RoomInTitle = RoomInTitle.OFF): EventFields {
+fun Lesson.toFields(style: SubjectStyle? = null, room: RoomInTitle = RoomInTitle.OFF, short: Boolean = false): EventFields {
     val subjectName = listOfNotNull(
         style?.emoji?.takeIf { it.isNotBlank() },
-        style?.displayName?.takeIf { it.isNotBlank() } ?: subject,
+        style?.displayName?.takeIf { it.isNotBlank() } ?: if (short) ShortNames.of(subject) else subject,
     ).joinToString(" ")
     val where = location?.takeIf { it.isNotBlank() }
     val name = when {

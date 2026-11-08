@@ -142,6 +142,23 @@
 
                     <com.google.android.material.divider.MaterialDivider style="@style/RowDivider" />
 
+                    <LinearLayout android:id="@+id/shortNamesRow" style="@style/Row">
+                        <LinearLayout style="@style/RowText">
+                            <TextView style="@style/RowTitle" android:text="Short lesson names" />
+                            <TextView
+                                style="@style/RowSummary"
+                                android:text="Testing-Advanced becomes Testing, so the room still fits on lock screens." />
+                        </LinearLayout>
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/shortNames"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:contentDescription="Short lesson names" />
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider style="@style/RowDivider" />
+
                     <LinearLayout android:id="@+id/roomRow" style="@style/Row">
                         <LinearLayout style="@style/RowText">
                             <TextView style="@style/RowTitle" android:text="Room in the event name" />

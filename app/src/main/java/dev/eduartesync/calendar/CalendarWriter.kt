@@ -34,12 +34,13 @@ class CalendarWriter(context: Context) {
         styles: Map<String, SubjectStyle>,
         reportUntil: LocalDate?,
         room: RoomInTitle = RoomInTitle.OFF,
+        shortNames: Boolean = false,
     ): List<ScheduleChange> {
         val calendarId = findOrCreateCalendar()
         val fromMillis = from.atStartOfDay(Config.ZONE).toInstant().toEpochMilli()
 
         val existing = queryEvents(calendarId, fromMillis)
-        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields(styles[it.subject], room) })
+        val plan = planChanges(existing, wanted = lessons.associate { it.id to it.toFields(styles[it.subject], room, shortNames) })
 
         val ops = ArrayList<ContentProviderOperation>()
         plan.deletes.forEach { rowId ->

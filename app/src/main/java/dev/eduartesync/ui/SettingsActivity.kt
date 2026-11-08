@@ -82,6 +82,15 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+        val shortNames = findViewById<MaterialSwitch>(R.id.shortNames).apply {
+            isChecked = settings.shortNames
+            setOnCheckedChangeListener { _, on ->
+                settings.shortNames = on
+                SyncScheduler.syncNow(this@SettingsActivity, quiet = true) // renames the events
+            }
+        }
+        findViewById<View>(R.id.shortNamesRow).setOnClickListener { shortNames.toggle() }
+
         findViewById<View>(R.id.roomRow).setOnClickListener {
             choose("Room in the event name", RoomInTitle.entries.map { it.label }, RoomInTitle.entries.indexOf(settings.roomInTitle)) { i ->
                 val option = RoomInTitle.entries[i]

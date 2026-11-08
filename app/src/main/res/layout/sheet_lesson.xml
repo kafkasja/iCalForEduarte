@@ -65,12 +65,29 @@
         style="@style/SheetLine"
         app:drawableStartCompat="@drawable/ic_group" />
 
-    <Button
-        android:id="@+id/openInCalendar"
-        style="@style/Widget.Material3.Button.TonalButton.Icon"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="20dp"
-        android:text="Open in calendar"
-        app:icon="@drawable/ic_open_in_new" />
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/rename"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="Rename" />
+
+        <Button
+            android:id="@+id/openInCalendar"
+            style="@style/Widget.Material3.Button.TonalButton.Icon"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Calendar"
+            android:contentDescription="Open in calendar"
+            app:icon="@drawable/ic_open_in_new" />
+    </LinearLayout>
 </LinearLayout>

@@ -30,10 +30,12 @@ class AttendanceSource(private val context: Context) {
         }
         val shown = AttendanceParser.parsePeriod(browser.run(HEADER_TEXT))
         if (shown != from to to) {
-            val result = JSONArray("[" + browser.runAsync(filterScript(from, to), FILTER_TIMEOUT_MS + 5_000) + "]").get(0)
-            if (result != "ok") {
-                throw IOException("Eduarte did not switch attendance to $from - $to (shows: $result)")
-            }
+            // "Zoeken" reloads the whole page, so the waiting happens here, not in the page script.
+            if (browser.run(filterScript(from, to)) != "ok") throw AgendaFormatException("attendance date fields not found")
+            val fromText = from.format(DutchDates.FIELD_FORMAT)
+            val header = "(document.querySelector(${jsString(AttendanceParser.PERIOD_HEADER)}) || {}).textContent"
+            val switched = browser.waitFor("document.readyState === 'complete' && ($header || '').indexOf('Vanaf $fromText') >= 0", FILTER_TIMEOUT_MS)
+            if (!switched) throw IOException("Eduarte did not switch attendance to $from - $to")
         }
         val attendance = browser.parseCurrent(AttendanceParser::parse)
         Log.i(PortalPages.TAG, "Attendance ${attendance.from} to ${attendance.to}: ${attendance.entries.size} entries")
@@ -49,38 +51,29 @@ class AttendanceSource(private val context: Context) {
         val fromText = from.format(DutchDates.FIELD_FORMAT)
         val toText = to.format(DutchDates.FIELD_FORMAT)
         return """
-            var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
-            var byName = function (n) {
-              return document.querySelector('input[name$="inputFields:' + n + ':controlGroup:controlGroup_body:formField"]');
-            };
-            var dates = document.querySelectorAll('.sidebar-date input');
-            var fromField = byName(0) || dates[0];
-            var toField = byName(1) || dates[1];
-            if (!fromField || !toField) throw new Error('attendance date fields not found');
-            var header = function () {
-              var h = document.querySelector(${jsString(AttendanceParser.PERIOD_HEADER)});
-              return h ? h.textContent.replace(/\s+/g, ' ').trim() : '';
-            };
-            var set = function (field, value) {
-              field.value = value;
-              if (window.jQuery) jQuery(field).trigger('change');
-              else field.dispatchEvent(new Event('change', { bubbles: true }));
-            };
-            set(fromField, '$fromText');
-            set(toField, '$toText');
-            await sleep(300);
-            var form = fromField.form || document;
-            var button = form.querySelector('input[type="button"][value="Zoeken"], button[type="submit"], input[type="submit"]');
-            if (button) button.click();
-            var until = Date.now() + $FILTER_TIMEOUT_MS;
-            while (Date.now() < until) {
-              await sleep(250);
-              if (header().indexOf('Vanaf $fromText') >= 0) {
-                await sleep(500); // the weeks are redrawn with the header
-                return 'ok';
-              }
-            }
-            return header();
+            (function () {
+              var byName = function (n) {
+                return document.querySelector('input[name$="inputFields:' + n + ':controlGroup:controlGroup_body:formField"]');
+              };
+              var dates = document.querySelectorAll('input.hasDatepicker');
+              var fromField = byName(0) || dates[0];
+              var toField = byName(1) || dates[1];
+              if (!fromField || !toField) return 'missing';
+              var set = function (field, value) {
+                field.value = value;
+                if (window.jQuery) jQuery(field).trigger('change');
+                else field.dispatchEvent(new Event('change', { bubbles: true }));
+              };
+              set(fromField, '$fromText');
+              set(toField, '$toText');
+              // Give the portal a moment to take in both dates, then search.
+              setTimeout(function () {
+                var button = (fromField.form || document).querySelector('input[value="Zoeken"], button[type="submit"], input[type="submit"]');
+                if (!button) return;
+                if (window.jQuery) jQuery(button).trigger('click'); else button.click();
+              }, 800);
+              return 'ok';
+            })()
         """.trimIndent()
     }
 

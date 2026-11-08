@@ -201,7 +201,8 @@ class PortalBrowser(
      */
     suspend fun waitFor(condition: String, timeoutMs: Long = TIMEOUT_MS): Boolean =
         withTimeoutOrNull(timeoutMs) {
-            while (evaluate("!!($condition)") != "true") delay(POLL_MS)
+            // A page that is being replaced may never answer, so each check gets its own time limit.
+            while (withTimeoutOrNull(CHECK_MS) { evaluate("!!($condition)") } != "true") delay(POLL_MS)
             true
         } ?: false
 
@@ -281,6 +282,7 @@ $body
         private const val TIMEOUT_MS = 45_000L
         private const val APPROVE_TIMEOUT_MS = 180_000L
         private const val POLL_MS = 250L
+        private const val CHECK_MS = 2_000L
         private const val SETTLE_MS = 750L
         private const val PAGE_HTML = "document.documentElement.outerHTML"
         private const val FIRST_DAY_HEADER = "(document.querySelector('div.agenda--day h4') || {}).textContent"

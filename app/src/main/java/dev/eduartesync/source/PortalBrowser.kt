@@ -190,6 +190,24 @@ class PortalBrowser(
     }
 
     /** The current URL and HTML of the page, as it is now (including background updates). */
+    /**
+     * Makes sure the agenda shows the "Week" view with "Toon lesuren" ticked, the only layout
+     * [AgendaParser] understands. Both are remembered by the portal, so switching to "Lijst"
+     * in the browser (or unticking the box) used to make every sync fail with "unexpected
+     * agenda page". Each switch reloads the agenda; returns once it shows the right layout.
+     */
+    suspend fun ensureWeekView() {
+        repeat(3) {
+            if (evaluate(AGENDA_LAYOUT) == "ok") return
+            val action = evaluate(FIX_AGENDA_LAYOUT)
+            LoginLog.add(appContext, "sync: agenda layout was changed, switching back ($action)")
+            if (action == "missing") throw AgendaFormatException("agenda view switch not found")
+            delay(SETTLE_MS)
+            waitFor("document.readyState === 'complete' && !!document.querySelector('div.agenda')", TIMEOUT_MS)
+        }
+        if (evaluate(AGENDA_LAYOUT) != "ok") throw AgendaFormatException("could not switch the agenda to the Week view")
+    }
+
     suspend fun currentPage(): Pair<String, String> = webView.url.orEmpty() to evaluate(PAGE_HTML)
 
     /** Runs [script] in the page and returns its result as a string ("" for null). */
@@ -285,6 +303,30 @@ $body
         private const val CHECK_MS = 2_000L
         private const val SETTLE_MS = 750L
         private const val PAGE_HTML = "document.documentElement.outerHTML"
+        /** "ok" when the agenda is in the Week view with lesson hours shown, else what's off. */
+        private const val AGENDA_LAYOUT = """(function () {
+            var view = document.querySelector('input[name="filter:weergaveKiezer:choicesContainer:enumHiddenField"]');
+            var hours = document.querySelector('input[name="filter:lesuren"]');
+            if (!view || !hours) return 'missing';
+            if (view.value !== 'Week') return 'view ' + view.value;
+            if (!hours.checked) return 'no lesson hours';
+            return 'ok';
+        })()"""
+        /** Fixes one thing at a time (each one reloads the agenda) and says what it did. */
+        private const val FIX_AGENDA_LAYOUT = """(function () {
+            var view = document.querySelector('input[name="filter:weergaveKiezer:choicesContainer:enumHiddenField"]');
+            var hours = document.querySelector('input[name="filter:lesuren"]');
+            if (!view || !hours) return 'missing';
+            if (view.value !== 'Week') {
+                var was = view.value;
+                var tab = document.querySelector('li[data-enumvalue="Week"] a');
+                if (tab) tab.click();
+                if (view.value !== 'Week') { view.value = 'Week'; if (window.jQuery) jQuery(view).trigger('change'); }
+                return 'view was ' + was;
+            }
+            if (!hours.checked) { hours.click(); return 'ticked lesson hours'; }
+            return 'nothing';
+        })()"""
         private const val FIRST_DAY_HEADER = "(document.querySelector('div.agenda--day h4') || {}).textContent"
         private val DATE_FIELD_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
     }

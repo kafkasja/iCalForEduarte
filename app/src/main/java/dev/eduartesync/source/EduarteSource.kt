@@ -23,7 +23,11 @@ class EduarteSource(
     suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> {
         val browser = withContext(Dispatchers.Main) { PortalBrowser(context, interactive, onApproveSignIn) }
         try {
-            var page = parse(withContext(Dispatchers.Main) { browser.open(AGENDA_URL) })
+            var page = parse(withContext(Dispatchers.Main) {
+                browser.open(AGENDA_URL)
+                browser.ensureWeekView()
+                browser.currentPage()
+            })
             val lessons = page.lessons.toMutableList()
 
             // Earlier weeks are only needed if the page opened after `from`.

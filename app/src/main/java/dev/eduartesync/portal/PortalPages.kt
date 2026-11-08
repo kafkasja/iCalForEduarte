@@ -3,7 +3,11 @@ package dev.eduartesync.portal
 import android.content.Context
 import dev.eduartesync.Config
 import dev.eduartesync.source.PortalBrowser
+import dev.eduartesync.source.PortalLock
+import dev.eduartesync.sync.Notifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Portal pages, relative to [Config.PORTAL_URL]. */
@@ -21,14 +25,29 @@ internal object PortalPages {
     const val TAG = "EduarteSync"
 }
 
-/** Runs [block] with a fresh hidden [PortalBrowser] on the main thread, and destroys it afterwards. */
+/**
+ * Runs [block] with a fresh hidden [PortalBrowser] on the main thread, and destroys it afterwards.
+ *
+ * Takes the [PortalLock], so it never renews the login at the same time as a sync. The portal
+ * readers run while the user has the app open, so the browser is interactive: when Microsoft
+ * wants the Authenticator, a notification shows what to tap (and is removed afterwards).
+ */
 internal suspend fun <T> withPortalBrowser(context: Context, block: suspend (PortalBrowser) -> T): T =
-    withContext(Dispatchers.Main) {
-        val browser = PortalBrowser(context)
-        try {
-            block(browser)
-        } finally {
-            browser.destroy()
+    PortalLock.mutex.withLock {
+        withContext(Dispatchers.Main) {
+            val appContext = context.applicationContext
+            val browser = PortalBrowser(appContext, interactive = true) { number ->
+                Notifier.approveSignIn(appContext, number, reading = "your Eduarte information")
+            }
+            try {
+                block(browser)
+            } finally {
+                // Also when cancelled (e.g. the screen was closed): a WebView left alive keeps running.
+                withContext(NonCancellable + Dispatchers.Main) {
+                    browser.destroy()
+                    Notifier.clearApproveSignIn(appContext)
+                }
+            }
         }
     }
 

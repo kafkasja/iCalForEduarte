@@ -8,6 +8,8 @@ import android.os.SystemClock
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import dev.eduartesync.auth.LoginLog
@@ -49,6 +51,7 @@ class PortalBrowser(
     private val appContext = context.applicationContext
     private var onPageFinished: ((String) -> Unit)? = null
     private var onState: ((MicrosoftLogin.StateMessage) -> Unit)? = null
+    private var onConnectionError: ((String) -> Unit)? = null
 
     private val webView = WebView(appContext).apply {
         settings.javaScriptEnabled = true
@@ -60,6 +63,13 @@ class PortalBrowser(
 
             override fun onPageFinished(view: WebView, url: String) {
                 onPageFinished?.invoke(url)
+            }
+
+            // Without internet the page never loads; say so right away instead of timing out.
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (request.isForMainFrame && error.errorCode in CONNECTION_ERRORS) {
+                    onConnectionError?.invoke("${error.description} (${request.url.host})")
+                }
             }
         }
         webChromeClient = object : WebChromeClient() {
@@ -86,64 +96,86 @@ class PortalBrowser(
         var renewing = false
         var passwordTried = false
         var passwordPages = 0
+        // Whether Microsoft asked for the Authenticator during this renewal, see the end.
+        var authenticatorSeen = false
         var lastState: State? = null
         var deadline = SystemClock.elapsedRealtime() + TIMEOUT_MS
-        val fillLogin = SavedLogin.password(appContext) != null &&
+        val fillLogin = SavedLogin.passwordToFill(appContext) != null &&
             (interactive || !SessionManager.backgroundNeedsAuthenticator(appContext))
         val fail = { e: Throwable -> if (failure == null) failure = e }
 
-        onState = { message ->
-            lastState = message.state
-            when (message.state) {
-                // The saved password is tried once: a second password page means it didn't work.
-                State.EMAIL -> if (!fillLogin) fail(SessionExpiredException(Reason.PASSWORD))
-                State.PASSWORD -> if (!fillLogin || ++passwordPages > 1) fail(SessionExpiredException(Reason.PASSWORD))
-                State.MFA_NUMBER, State.MFA_APPROVE, State.MFA_CODE -> if (interactive) {
-                    // Approving takes a moment: give the user a few minutes.
-                    deadline = SystemClock.elapsedRealtime() + APPROVE_TIMEOUT_MS
-                    if (message.state != State.MFA_CODE) onApproveSignIn(message.detail.ifEmpty { null })
-                    else fail(SessionExpiredException(Reason.AUTHENTICATOR))
-                } else {
-                    SessionManager.setBackgroundNeedsAuthenticator(appContext, true)
-                    LoginLog.add(appContext, "sync: Microsoft wants the Authenticator; not renewing in the background anymore")
-                    fail(SessionExpiredException(Reason.AUTHENTICATOR))
-                }
-                State.ERROR -> fail(SessionExpiredException(Reason.ERROR, message.detail))
-            }
-        }
-        onPageFinished = { loaded ->
-            when {
-                isTargetPage(loaded, targetPath) -> landed.complete(loaded)
-                MicrosoftLogin.isMicrosoftPage(loaded) -> {
-                    if (!renewing) {
-                        renewing = true
-                        LoginLog.add(appContext, "sync: session renewal through Microsoft" + if (interactive) " (app icon)" else " (background)")
-                        LoginLog.microsoftCookies(appContext)
-                    }
-                    LoginLog.page(appContext, loaded)
-                    webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
-                    if (fillLogin) {
-                        val password = if (passwordTried) null else SavedLogin.password(appContext)
-                        if (password != null) passwordTried = true
-                        webView.evaluateJavascript(MicrosoftLogin.fillScript(SavedLogin.email(appContext), password), null)
-                    }
-                }
-                // Came back from a session renewal on the home page: open the target page again.
-                SessionManager.isPortalPage(loaded) && !reopened -> {
-                    reopened = true
-                    webView.loadUrl(url)
-                }
-            }
-        }
-        webView.loadUrl(url)
-
-        // Wait for the agenda, a reason to give up, or the deadline (which approving moves).
         var finalUrl: String? = null
-        while (finalUrl == null && failure == null && SystemClock.elapsedRealtime() < deadline) {
-            finalUrl = withTimeoutOrNull(POLL_MS) { landed.await() }
+        // The callbacks are cleared however this ends, also when the coroutine is cancelled.
+        try {
+            onState = { message ->
+                lastState = message.state
+                when (message.state) {
+                    // The saved password is tried once: a second password page means it didn't work.
+                    State.EMAIL -> if (!fillLogin) fail(SessionExpiredException(Reason.PASSWORD))
+                    State.PASSWORD -> if (!fillLogin || ++passwordPages > 1) fail(SessionExpiredException(Reason.PASSWORD))
+                    State.MFA_NUMBER, State.MFA_APPROVE, State.MFA_CODE -> {
+                        authenticatorSeen = true
+                        if (interactive) {
+                            // Approving takes a moment: give the user a few minutes.
+                            deadline = SystemClock.elapsedRealtime() + APPROVE_TIMEOUT_MS
+                            if (message.state != State.MFA_CODE) onApproveSignIn(message.detail.ifEmpty { null })
+                            else fail(SessionExpiredException(Reason.AUTHENTICATOR))
+                        } else {
+                            SessionManager.setBackgroundNeedsAuthenticator(appContext, true)
+                            LoginLog.add(appContext, "sync: Microsoft wants the Authenticator; not renewing in the background anymore")
+                            fail(SessionExpiredException(Reason.AUTHENTICATOR))
+                        }
+                    }
+                    State.ERROR -> {
+                        // Most likely the saved password is wrong (changed). Trying it again on
+                        // every sync could lock the account, so it isn't filled in anymore until
+                        // the user logs in by hand.
+                        if (passwordTried) {
+                            SavedLogin.setPasswordRejected(appContext, true)
+                            LoginLog.add(appContext, "sync: saved password rejected; not filling it in until the next manual login")
+                        }
+                        fail(SessionExpiredException(Reason.ERROR, message.detail))
+                    }
+                    // "Try again later" and the like: nothing wrong with the login itself.
+                    State.PAGE_ERROR -> fail(SignInPageException(message.detail))
+                }
+            }
+            onConnectionError = { description -> fail(NoConnectionException(description)) }
+            onPageFinished = { loaded ->
+                when {
+                    isTargetPage(loaded, targetPath) -> landed.complete(loaded)
+                    MicrosoftLogin.isMicrosoftPage(loaded) -> {
+                        if (!renewing) {
+                            renewing = true
+                            LoginLog.add(appContext, "sync: session renewal through Microsoft" + if (interactive) " (app icon)" else " (background)")
+                            LoginLog.microsoftCookies(appContext)
+                        }
+                        LoginLog.page(appContext, loaded)
+                        webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
+                        if (fillLogin) {
+                            val password = if (passwordTried) null else SavedLogin.passwordToFill(appContext)
+                            if (password != null) passwordTried = true
+                            webView.evaluateJavascript(MicrosoftLogin.fillScript(SavedLogin.email(appContext), password), null)
+                        }
+                    }
+                    // Came back from a session renewal on the home page: open the target page again.
+                    SessionManager.isPortalPage(loaded) && !reopened -> {
+                        reopened = true
+                        webView.loadUrl(url)
+                    }
+                }
+            }
+            webView.loadUrl(url)
+
+            // Wait for the agenda, a reason to give up, or the deadline (which approving moves).
+            while (finalUrl == null && failure == null && SystemClock.elapsedRealtime() < deadline) {
+                finalUrl = withTimeoutOrNull(POLL_MS) { landed.await() }
+            }
+        } finally {
+            onPageFinished = null
+            onState = null
+            onConnectionError = null
         }
-        onPageFinished = null
-        onState = null
 
         if (finalUrl == null) {
             webView.stopLoading()
@@ -156,17 +188,19 @@ class PortalBrowser(
             if (!SessionManager.isPortalPage(webView.url) && lastState != null) {
                 LoginLog.add(appContext, "sync: login expired (last step: ${lastState?.key}), stuck on this page:")
                 LoginLog.page(appContext, webView.url)
-                throw SessionExpiredException(if (lastState == State.PASSWORD) Reason.PASSWORD else Reason.AUTHENTICATOR)
+                // Stuck on the email or password page means the password is what's missing.
+                val reason = if (lastState?.asksForPassword == true) Reason.PASSWORD else Reason.AUTHENTICATOR
+                throw SessionExpiredException(reason)
             }
             LoginLog.add(appContext, "sync: timed out on this page:")
             LoginLog.page(appContext, webView.url)
-            throw IOException("Eduarte did not load $targetPath in time")
+            throw PortalTimeoutException("Eduarte did not load $targetPath in time")
         }
         CookieManager.getInstance().flush()
         if (renewing) {
             LoginLog.add(appContext, "sync: session renewed" + if (passwordTried) " with the saved password" else " without the user")
-            // It worked: a later background renewal may try again.
-            if (!interactive || lastState == null) SessionManager.setBackgroundNeedsAuthenticator(appContext, false)
+            // It worked without the Authenticator: a later background renewal may try again.
+            if (!authenticatorSeen) SessionManager.setBackgroundNeedsAuthenticator(appContext, false)
         }
         return finalUrl to evaluate(PAGE_HTML)
     }
@@ -184,30 +218,51 @@ class PortalBrowser(
         val switched = withTimeoutOrNull(TIMEOUT_MS) {
             while (evaluate(FIRST_DAY_HEADER) == before) delay(POLL_MS)
         } != null
-        if (!switched) throw IOException("Eduarte did not switch to the week of $date")
-        delay(SETTLE_MS) // the new week's lesson positions arrive just after the lessons
+        if (!switched) throw PortalTimeoutException("Eduarte did not switch to the week of $date")
+        // The new week's lesson positions (style rules) arrive just after the lessons. Parsing
+        // before they're all there would drop or misplace lessons, so wait for every one.
+        if (!waitFor(WEEK_READY, TIMEOUT_MS)) {
+            throw PortalTimeoutException("Eduarte did not show the lesson times for the week of $date")
+        }
         return webView.url.orEmpty() to evaluate(PAGE_HTML)
     }
 
-    /** The current URL and HTML of the page, as it is now (including background updates). */
     /**
      * Makes sure the agenda shows the "Week" view with "Toon lesuren" ticked, the only layout
      * [AgendaParser] understands. Both are remembered by the portal, so switching to "Lijst"
      * in the browser (or unticking the box) used to make every sync fail with "unexpected
      * agenda page". Each switch reloads the agenda; returns once it shows the right layout.
+     *
+     * The fix script changes the filter inputs right away (the checkbox ticks on click), but
+     * the agenda is redrawn later in the background. So success is judged by the drawn agenda
+     * ([WEEK_READY]), and after each fix it waits until the agenda was actually redrawn (the
+     * parts shown before the fix are marked, see [NEW_AGENDA]).
      */
     suspend fun ensureWeekView() {
+        // The filter is part of the page, but may still be loading in the background.
+        if (!waitFor(FILTER_INPUTS, CONTENT_TIMEOUT_MS)) throw AgendaFormatException("agenda view switch not found")
         repeat(3) {
-            if (evaluate(AGENDA_LAYOUT) == "ok") return
+            if (evaluate(AGENDA_LAYOUT) == "ok" && waitFor(WEEK_READY, CONTENT_TIMEOUT_MS)) return
+            evaluate(MARK_AGENDA)
             val action = evaluate(FIX_AGENDA_LAYOUT)
             LoginLog.add(appContext, "sync: agenda layout was changed, switching back ($action)")
             if (action == "missing") throw AgendaFormatException("agenda view switch not found")
-            delay(SETTLE_MS)
-            waitFor("document.readyState === 'complete' && !!document.querySelector('div.agenda')", TIMEOUT_MS)
+            // The filter says Week with lesson hours, yet no week grid is drawn.
+            if (action == "nothing") throw AgendaFormatException("agenda shows no week grid")
+            // Done once a new agenda is drawn that is either the week grid, or still needs
+            // another fix (each fix changes one thing).
+            val redrawn = waitFor(
+                "document.readyState === 'complete' && $NEW_AGENDA && ($AGENDA_LAYOUT !== 'ok' || $WEEK_READY)",
+                TIMEOUT_MS,
+            )
+            if (!redrawn) throw PortalTimeoutException("Eduarte did not redraw the agenda after switching the view ($action)")
         }
-        if (evaluate(AGENDA_LAYOUT) != "ok") throw AgendaFormatException("could not switch the agenda to the Week view")
+        if (evaluate(AGENDA_LAYOUT) != "ok" || evaluate(WEEK_READY) != "true") {
+            throw AgendaFormatException("could not switch the agenda to the Week view")
+        }
     }
 
+    /** The current URL and HTML of the page, as it is now (including background updates). */
     suspend fun currentPage(): Pair<String, String> = webView.url.orEmpty() to evaluate(PAGE_HTML)
 
     /** Runs [script] in the page and returns its result as a string ("" for null). */
@@ -245,7 +300,7 @@ class PortalBrowser(
                 result = evaluate(poll)
             }
             result
-        } ?: throw IOException("Eduarte page script did not finish in time")
+        } ?: throw PortalTimeoutException("Eduarte page script did not finish in time")
         val outcome = JSONObject(raw)
         if (!outcome.optBoolean("ok")) {
             throw AgendaFormatException("page script failed: ${outcome.optString("error")}")
@@ -258,14 +313,21 @@ class PortalBrowser(
         webView.destroy()
     }
 
-    /** Runs [script] in the page and returns its result as a string ("" for null). */
-    private suspend fun evaluate(script: String): String = suspendCancellableCoroutine { cont ->
-        webView.evaluateJavascript(script) { json ->
-            // The result comes back JSON encoded.
-            val value = JSONArray("[$json]")
-            cont.resume(if (value.isNull(0)) "" else value.get(0).toString())
+    /**
+     * Runs [script] in the page and returns its result as a string ("" for null).
+     *
+     * WebView never answers a script that was pending when the page navigated away, so this
+     * gives up after [EVALUATE_TIMEOUT_MS] instead of waiting forever.
+     */
+    private suspend fun evaluate(script: String): String = withTimeoutOrNull(EVALUATE_TIMEOUT_MS) {
+        suspendCancellableCoroutine { cont ->
+            webView.evaluateJavascript(script) { json ->
+                // The result comes back JSON encoded.
+                val value = JSONArray("[$json]")
+                cont.resume(if (value.isNull(0)) "" else value.get(0).toString())
+            }
         }
-    }
+    } ?: throw PortalTimeoutException("Eduarte stopped responding")
 
     private fun setDate(date: String) = """
         (function () {
@@ -301,8 +363,67 @@ $body
         private const val APPROVE_TIMEOUT_MS = 180_000L
         private const val POLL_MS = 250L
         private const val CHECK_MS = 2_000L
-        private const val SETTLE_MS = 750L
+        private const val EVALUATE_TIMEOUT_MS = 10_000L
+        /** For parts of the agenda that load in the background. */
+        private const val CONTENT_TIMEOUT_MS = 20_000L
+        /** WebView errors that mean there is no connection, see onReceivedError. */
+        private val CONNECTION_ERRORS = setOf(
+            WebViewClient.ERROR_HOST_LOOKUP,
+            WebViewClient.ERROR_CONNECT,
+            WebViewClient.ERROR_TIMEOUT,
+        )
         private const val PAGE_HTML = "document.documentElement.outerHTML"
+        private const val FILTER_INPUTS = "document.querySelector('input[name=\"filter:weergaveKiezer:choicesContainer:enumHiddenField\"]') && " +
+            "document.querySelector('input[name=\"filter:lesuren\"]')"
+        /**
+         * The agenda and its columns. In the captured page `div.agenda` itself has no id, so the
+         * portal may redraw just a part of it (the days, or the lesson hour column); all parts
+         * are watched.
+         */
+        private const val AGENDA_PARTS = "div.agenda, div.agenda--days, div.agenda--schedule, div.agenda--time, div.agenda--day"
+        /** Marks the agenda parts shown now, so [NEW_AGENDA] can tell when they were replaced. */
+        private const val MARK_AGENDA = """(function () {
+            var parts = document.querySelectorAll('$AGENDA_PARTS');
+            parts.forEach(function (p) { p.__eduarteOld = true; });
+            window.__eduarteMarked = parts.length;
+            return parts.length;
+        })()"""
+        /**
+         * True once the agenda was redrawn after [MARK_AGENDA]: a marked part is gone or an
+         * unmarked one appeared (also when the whole page was loaded again). Needs a `div.agenda`.
+         */
+        private const val NEW_AGENDA = """(function () {
+            if (!document.querySelector('div.agenda')) return false;
+            if (window.__eduarteMarked === undefined) return true;
+            var parts = document.querySelectorAll('$AGENDA_PARTS'), old = 0;
+            for (var i = 0; i < parts.length; i++) {
+                if (!parts[i].__eduarteOld) return true;
+                old++;
+            }
+            return old < window.__eduarteMarked;
+        })()"""
+        /**
+         * True when the agenda is drawn the way [AgendaParser] reads it: a time column starting
+         * with an HH:mm label, lesson hour rows, and a position (style rule with top and
+         * height) for every row and every lesson. Looks at what is drawn, not at the filter.
+         */
+        private const val WEEK_READY = """(function () {
+            var agenda = document.querySelector('div.agenda');
+            if (!agenda) return false;
+            var time = agenda.querySelector('div.agenda--time li span');
+            if (!time || !/^\d{2}:\d{2}$/.test(time.textContent.trim())) return false;
+            var rows = agenda.querySelectorAll('div.agenda--schedule li[id]');
+            if (!rows.length) return false;
+            var css = Array.prototype.map.call(document.querySelectorAll('style'), function (s) { return s.textContent; }).join('\n');
+            var placed = function (el) {
+                var rule = new RegExp('#' + el.id.replace(/[^\w-]/g, '') + '\\s*\\{([^}]*)\\}').exec(css);
+                return !!rule && /top\s*:\s*-?[\d.]+px/.test(rule[1]) && /height\s*:\s*[\d.]+px/.test(rule[1]);
+            };
+            for (var i = 0; i < rows.length; i++) if (!placed(rows[i])) return false;
+            var lessons = agenda.querySelectorAll('li.agenda--course');
+            for (var j = 0; j < lessons.length; j++) if (!placed(lessons[j])) return false;
+            return true;
+        })()"""
         /** "ok" when the agenda is in the Week view with lesson hours shown, else what's off. */
         private const val AGENDA_LAYOUT = """(function () {
             var view = document.querySelector('input[name="filter:weergaveKiezer:choicesContainer:enumHiddenField"]');

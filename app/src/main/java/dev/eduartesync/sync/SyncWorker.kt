@@ -17,9 +17,14 @@ import dev.eduartesync.source.EduarteSource
 import dev.eduartesync.source.SessionExpiredException
 import dev.eduartesync.settings.AppSettings
 import dev.eduartesync.source.mergeConsecutive
+import dev.eduartesync.source.AgendaFormatException
+import dev.eduartesync.source.SignInPageException
 import dev.eduartesync.subjects.SubjectStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.time.LocalDate
 
@@ -62,6 +67,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
             // "Log in needed" is what the settings page looks for, see SyncStatus.isLoginExpired.
             report("Not synced: log in needed. ${Notifier.loginRequiredText(context, e.reason)}")
             return Result.success()
+        } catch (e: CancellationException) {
+            // WorkManager stopped the job (constraints, app update, user): not a failure to report.
+            Notifier.clearApproveSignIn(context)
+            throw e
         } catch (e: Throwable) {
             Notifier.clearApproveSignIn(context)
             Log.w(TAG, "Sync failed (attempt $runAttemptCount)", e)
@@ -72,9 +81,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 saveResult("Not synced yet, trying again soon. ${problem.message}\n(${problem.details})")
                 return Result.retry()
             }
-            report("Not synced. ${problem.message}\n(${problem.details})")
-            if (!manual) Notifier.syncFailed(context, problem)
-            return Result.failure()
+            return failed(problem)
         }
         Notifier.clearApproveSignIn(context)
 
@@ -82,7 +89,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         subjects.addSeen(lessons.map { it.subject })
         // Changes are only reported for days the previous sync already covered.
         val reportUntil = settings.syncedUntil?.let { minOf(it, to) }
-        val changes = CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil, settings.roomInTitle)
+        val changes = try {
+            CalendarWriter(context).sync(lessons, from, subjects.byName(), reportUntil, settings.roomInTitle)
+        } catch (e: Exception) {
+            // E.g. calendar access was taken away during the sync, or the calendar app's storage failed.
+            Log.w(TAG, "Writing the calendar failed", e)
+            return failed(SyncProblem.fromCalendar(e))
+        }
         settings.syncedUntil = to
 
         Notifier.clearProblem(context)
@@ -93,16 +106,25 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         return Result.success()
     }
 
+    /** Reports a failed sync; the user sees [problem] (a toast or a notification), the settings page also the details. */
+    private fun failed(problem: SyncProblem): Result {
+        report("Not synced. ${problem.message}", problem.details)
+        if (!manual) Notifier.syncFailed(applicationContext, problem)
+        return Result.failure()
+    }
+
     /**
      * Reads the schedule. A manual sync tries a second time with a fresh page when Eduarte was
-     * just slow, so a single hiccup doesn't end in an error message.
+     * just slow, or showed the agenda half drawn, so a single hiccup doesn't end in an error message.
      */
     private suspend fun fetch(from: LocalDate, to: LocalDate): List<Lesson> {
         val source = EduarteSource(applicationContext, interactive = manual, onApproveSignIn = ::approveSignIn)
         return try {
             source.fetch(from, to)
-        } catch (e: IOException) {
-            if (!manual) throw e
+        } catch (e: Exception) {
+            if (!manual || (e !is IOException && e !is AgendaFormatException)) throw e
+            // Microsoft said "try again later": right away would only make that worse.
+            if (e is SignInPageException) throw e
             Log.w(TAG, "Sync attempt failed, trying once more", e)
             source.fetch(from, to)
         }
@@ -119,10 +141,11 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     /**
      * Saves the result for the settings page, and shows it as a toast for a manual sync, unless
-     * it was started from inside the app, which shows the result itself.
+     * it was started from inside the app, which shows the result itself. [details] (the
+     * technical error) is only saved, on a second line in brackets, which the settings page shows.
      */
-    private fun report(message: String) {
-        saveResult(message)
+    private fun report(message: String, details: String? = null) {
+        saveResult(if (details != null) "$message\n($details)" else message)
         if (manual && !inputData.getBoolean(KEY_QUIET, false)) toast(message)
     }
 
@@ -145,5 +168,18 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         private val syncLock = Mutex()
         private const val TAG = "EduarteSync"
         private const val MAX_RETRIES = 3
+
+        /**
+         * "Clear calendar" from settings: deletes the app's calendar, waiting for a running sync
+         * to finish first, so the sync can't write half of its events into a calendar that is
+         * being removed (or recreate it right after). Returns whether there was anything to delete.
+         */
+        suspend fun clearCalendar(context: Context): Boolean = syncLock.withLock {
+            withContext(Dispatchers.IO) {
+                val removed = CalendarWriter(context).deleteCalendar() > 0
+                AppSettings(context).syncedUntil = null
+                removed
+            }
+        }
     }
 }

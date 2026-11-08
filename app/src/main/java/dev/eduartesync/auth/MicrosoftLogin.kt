@@ -32,10 +32,18 @@ object MicrosoftLogin {
         MFA_APPROVE("mfa-approve"),
         /** Type a code from the Authenticator or a text message. */
         MFA_CODE("mfa-code"),
-        /** The page shows an error, like a wrong password. */
-        ERROR("error");
+        /** An error at the email or password field, like a wrong password: the login itself failed. */
+        ERROR("error"),
+        /**
+         * Any other error on the page, like "too many attempts, try again later". Not about the
+         * login itself, so it's treated as a temporary problem.
+         */
+        PAGE_ERROR("page-error");
 
-        val needsUser get() = this != ERROR
+        val needsUser get() = this != ERROR && this != PAGE_ERROR
+
+        /** The email or password page: stopping here means the password is what's missing. */
+        val asksForPassword get() = this == EMAIL || this == PASSWORD
 
         companion object {
             fun fromKey(key: String) = entries.firstOrNull { it.key == key }
@@ -104,9 +112,13 @@ object MicrosoftLogin {
               return;
             }
 
-            var error = text('#passwordError') || text('#usernameError') || text('#idTD_Error') || text('.alert-error');
+            // Only errors at the email/password fields mean the login failed; the others are
+            // things like "try again later".
+            var fieldError = text('#passwordError') || text('#usernameError');
+            var pageError = text('#idTD_Error') || text('.alert-error');
             var number = text('#idRichContext_DisplaySign');
-            if (error) report('error ' + error.slice(0, 120));
+            if (fieldError) report('error ' + fieldError.slice(0, 120));
+            else if (pageError) report('page-error ' + pageError.slice(0, 120));
             else if (number) report('mfa-number ' + number);
             else if (visible(document.querySelector('input[name="otc"]'))) report('mfa-code');
             else if (visible(document.getElementById('idDiv_SAOTCAS_Title')) || visible(document.getElementById('idDiv_SAOTCC_Title'))) report('mfa-approve');

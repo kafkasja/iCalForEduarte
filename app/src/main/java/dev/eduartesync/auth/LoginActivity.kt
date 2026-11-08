@@ -102,7 +102,8 @@ class LoginActivity : Activity() {
 
     private fun fillScript() = MicrosoftLogin.fillScript(
         email = SavedLogin.email(this),
-        password = if (passwordFilled) null else SavedLogin.password(this),
+        // Not after Microsoft rejected it: the user types the right one here.
+        password = if (passwordFilled) null else SavedLogin.passwordToFill(this),
     )
 
     /** Called from [MicrosoftLogin.fillScript]. */
@@ -134,6 +135,11 @@ class LoginActivity : Activity() {
         LoginLog.add(this, "logged in")
         LoginLog.microsoftCookies(this)
         SessionManager.setLoggedIn(this, true)
+        // A fresh login: a background renewal may try again.
+        SessionManager.setBackgroundNeedsAuthenticator(this, false)
+        // The password typed here worked (and replaced the saved one if "Remember" is on), so
+        // it may be filled in again. Without typing, the rejected saved password stays unused.
+        if (typedPassword != null) SavedLogin.setPasswordRejected(this, false)
         SyncScheduler.updatePeriodic(this)
         SyncScheduler.syncNow(this, quiet = true) // the app shows the result itself
         Toast.makeText(this, "Logged in, syncing your schedule...", Toast.LENGTH_SHORT).show()

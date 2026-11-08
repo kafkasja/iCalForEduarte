@@ -20,6 +20,7 @@ object SavedLogin {
     private const val KEY_ENABLED = "enabled"
     private const val KEY_EMAIL = "email"
     private const val KEY_PASSWORD = "password"
+    private const val KEY_REJECTED = "password_rejected"
     private const val KEY_ALIAS = "eduarte_saved_login"
     private const val KEYSTORE = "AndroidKeyStore"
     private const val CIPHER = "AES/GCM/NoPadding"
@@ -38,9 +39,27 @@ object SavedLogin {
     fun saveEmail(context: Context, email: String) = write(context, KEY_EMAIL, email)
     fun savePassword(context: Context, password: String) = write(context, KEY_PASSWORD, password)
 
+    /**
+     * The saved password to fill in automatically, or null when none is saved or Microsoft
+     * rejected it ([setPasswordRejected]).
+     */
+    fun passwordToFill(context: Context): String? =
+        if (isPasswordRejected(context)) null else password(context)
+
+    fun isPasswordRejected(context: Context): Boolean = prefs(context).getBoolean(KEY_REJECTED, false)
+
+    /**
+     * Set when Microsoft said the saved password is wrong (it was probably changed). It is then
+     * not filled in anymore, in syncs or on the login screen, so a wrong password isn't tried
+     * again and again, which could lock the account. Cleared when the user logs in by hand.
+     */
+    fun setPasswordRejected(context: Context, rejected: Boolean) {
+        prefs(context).edit().putBoolean(KEY_REJECTED, rejected).apply()
+    }
+
     /** Deletes the saved email and password (the setting itself stays). */
     fun forget(context: Context) {
-        prefs(context).edit().remove(KEY_EMAIL).remove(KEY_PASSWORD).apply()
+        prefs(context).edit().remove(KEY_EMAIL).remove(KEY_PASSWORD).remove(KEY_REJECTED).apply()
         runCatching { keyStore().deleteEntry(KEY_ALIAS) }
     }
 

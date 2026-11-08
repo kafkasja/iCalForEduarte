@@ -43,7 +43,14 @@ object Notifier {
     )
 
     /** Why the user has to log in, in plain words. */
-    fun loginRequiredText(context: Context, reason: Reason?): String = when (reason) {
+    fun loginRequiredText(context: Context, reason: Reason?): String = when {
+        // Kept from being tried again and again, see SavedLogin.setPasswordRejected.
+        reason != null && SavedLogin.isEnabled(context) && SavedLogin.isPasswordRejected(context) ->
+            "Microsoft said the saved password is wrong, so it isn't filled in anymore. Log in once with your current password."
+        else -> loginRequiredReason(context, reason)
+    }
+
+    private fun loginRequiredReason(context: Context, reason: Reason?): String = when (reason) {
         Reason.PASSWORD -> if (SavedLogin.isEnabled(context)) {
             "Microsoft asked for your password and the saved one didn't work (or none is saved yet)."
         } else {
@@ -61,12 +68,15 @@ object Notifier {
         intent = Intent(context, MainActivity::class.java),
     )
 
-    /** A sync the user started waits for them to approve the sign-in in the Authenticator. */
-    fun approveSignIn(context: Context, number: String?) = show(
+    /**
+     * A sync the user started (or a portal page opened in the app) waits for them to approve the
+     * sign-in in the Authenticator. [reading] says what is being read, for the text.
+     */
+    fun approveSignIn(context: Context, number: String?, reading: String = "your schedule") = show(
         context, CHANNEL_SIGN_IN, ID_APPROVE,
         title = if (number != null) "Tap $number in the Authenticator" else "Approve the sign-in in the Authenticator",
-        text = "Microsoft wants to confirm it's you before Eduarte Sync can read your schedule. " +
-            "The sync finishes by itself once you approve.",
+        text = "Microsoft wants to confirm it's you before Eduarte Sync can read $reading. " +
+            "It continues by itself once you approve.",
         intent = Intent(context, MainActivity::class.java),
         autoCancel = false,
     )

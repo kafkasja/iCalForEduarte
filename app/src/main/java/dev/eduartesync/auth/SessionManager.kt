@@ -27,7 +27,8 @@ object SessionManager {
     /**
      * Set when a background sync found that renewing the login needs the Authenticator, even
      * with the saved password. Background syncs then stop trying, so the user never gets an
-     * Authenticator request they didn't ask for. Cleared once a renewal works without it.
+     * Authenticator request they didn't ask for. Cleared once a renewal works without the
+     * Authenticator (e.g. one the user started), and when the user logs in on the login screen.
      */
     fun backgroundNeedsAuthenticator(context: Context): Boolean =
         prefs(context).getBoolean(KEY_NEEDS_AUTHENTICATOR, false)

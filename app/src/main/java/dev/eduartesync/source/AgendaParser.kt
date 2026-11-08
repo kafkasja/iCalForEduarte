@@ -2,7 +2,9 @@ package dev.eduartesync.source
 
 import dev.eduartesync.model.Lesson
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.time.DateTimeException
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
@@ -26,6 +28,7 @@ data class AgendaWeek(
  */
 object AgendaParser {
     private const val MINUTES_PER_ROW = 15
+    private const val DAYS_PER_WEEK = 7
     // Android's regex engine (ICU) rejects an unescaped '}', unlike desktop Java.
     private val STYLE_RULE = Regex("""#([\w-]+)\s*\{([^\}]*)\}""")
     private val PX_PROPERTY = Regex("""(top|height)\s*:\s*(-?[\d.]+)px""")
@@ -34,32 +37,38 @@ object AgendaParser {
     private val MONTHS = listOf("jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec")
     private val FILTER_DATE = DateTimeFormatter.ofPattern("dd-MM-yyyy")
 
+    /**
+     * Strict on purpose: whatever lessons are missing from the result get deleted from the
+     * calendar, so anything unexpected (a lesson without a position, a day that can't be read,
+     * not exactly one week) throws [AgendaFormatException] instead of being skipped.
+     */
     fun parse(html: String, pageUrl: String, zone: ZoneId): AgendaWeek {
         val doc = Jsoup.parse(html, pageUrl)
         val boxes = parseStyleBoxes(doc.select("style").joinToString("\n") { it.data() })
 
         val dayStart = doc.selectFirst("div.agenda--time li span")?.text()?.trim()
-            ?.let(LocalTime::parse)
+            ?.let { text -> parseOrFail("time label '$text'") { LocalTime.parse(text) } }
             ?: throw AgendaFormatException("time column not found (is the agenda in 'Week' view?)")
-        val rowHeight = doc.selectFirst("div.agenda--schedule li[id]")
-            ?.let { boxes[it.id()]?.height }
-            ?: throw AgendaFormatException("schedule rows not found")
-        val pxPerMinute = rowHeight / MINUTES_PER_ROW
+        val pxPerMinute = rowHeight(doc, boxes) / MINUTES_PER_ROW
 
         // Day headers have no year ("ma 5 okt"); take it from the selected date in the filter.
         val selectedDate = doc.selectFirst("input[name=filter:datum]")?.attr("value")
-            ?.let { LocalDate.parse(it, FILTER_DATE) }
+            ?.let { text -> parseOrFail("selected date '$text'") { LocalDate.parse(text, FILTER_DATE) } }
             ?: throw AgendaFormatException("selected date not found")
 
         val days = mutableListOf<LocalDate>()
         val lessons = mutableListOf<Lesson>()
         for (day in doc.select("div.agenda--day")) {
-            val header = day.selectFirst("h4")?.text() ?: continue
-            val date = parseDayHeader(header, selectedDate) ?: continue
+            val header = day.selectFirst("h4")?.text()
+                ?: throw AgendaFormatException("day without a header")
+            val date = parseDayHeader(header, selectedDate)
+                ?: throw AgendaFormatException("day header '$header' not understood")
             days += date
             val seen = HashMap<String, Int>()
             for (item in day.select("li.agenda--course")) {
-                val box = boxes[item.id()] ?: continue
+                // No position means no time; skipping it would delete the lesson from the calendar.
+                val box = boxes[item.id()]
+                    ?: throw AgendaFormatException("lesson '${item.textOf("span.is-subject")}' on $date has no position")
                 val startMinute = (box.top / pxPerMinute).roundToInt()
                 val endMinute = ((box.top + box.height) / pxPerMinute).roundToInt()
                 val start = date.atTime(dayStart).plusMinutes(startMinute.toLong()).atZone(zone)
@@ -84,7 +93,36 @@ object AgendaParser {
         }
 
         if (days.isEmpty()) throw AgendaFormatException("no days found")
+        // The Week view always shows Monday to Sunday (seen in every capture).
+        if (days.size != DAYS_PER_WEEK) throw AgendaFormatException("expected $DAYS_PER_WEEK days, found ${days.size}: $days")
+        if (days.zipWithNext().any { (a, b) -> b != a.plusDays(1) }) {
+            throw AgendaFormatException("days are not consecutive: $days")
+        }
         return AgendaWeek(days, lessons)
+    }
+
+    /**
+     * Height of one 15-minute row, the scale for all times. Every row must have a position and
+     * the same height; otherwise the scale is unknown and all times could be off.
+     */
+    private fun rowHeight(doc: Document, boxes: Map<String, Box>): Double {
+        val rows = doc.select("div.agenda--schedule li[id]")
+        if (rows.isEmpty()) throw AgendaFormatException("schedule rows not found")
+        val heights = rows.map { row ->
+            boxes[row.id()]?.height ?: throw AgendaFormatException("schedule row ${row.id()} has no position")
+        }
+        val height = heights.first()
+        if (height <= 0 || heights.any { abs(it - height) > 0.01 }) {
+            throw AgendaFormatException("schedule rows have different heights: ${heights.distinct()}")
+        }
+        return height
+    }
+
+    /** Runs [parse], turning a date/time parse error into an [AgendaFormatException] about [what]. */
+    private inline fun <T> parseOrFail(what: String, parse: () -> T): T = try {
+        parse()
+    } catch (e: DateTimeException) {
+        throw AgendaFormatException("$what not understood")
     }
 
     /** "PDO-Expert  KLAS01" -> ("PDO-Expert", "KLAS01"). The portal separates them with 2+ spaces. */

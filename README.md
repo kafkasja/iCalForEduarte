@@ -22,7 +22,7 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 - It also syncs in the background about every 12 hours.
 - By default each sync covers today until the end of next week. Days that have passed are left alone.
 - When the schedule changed, a notification lists what changed. Days that are new to the calendar don't count as changes. "Ignore" turns these notifications off; they can be turned back on from the settings.
-- When a sync fails, the message says what went wrong in plain language, with the technical error underneath. A failed sync never changes the calendar.
+- When a sync fails, the message says what went wrong in plain language; the settings page also shows the technical error. A failed sync never changes the calendar.
 
 ## Settings
 
@@ -48,7 +48,7 @@ Clearing the app's storage in Android settings resets everything, including the 
 
 ## What the app does, step by step
 
-1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. By default the app never stores the password; Microsoft and Eduarte handle it on their own pages. With "Fill in my email and password" on, the app reads what you type on the Microsoft login page and stores it encrypted with a key in the Android Keystore, which never leaves the phone. It only fills it in on the Microsoft login page, and tries a saved password once per login screen, so a changed password doesn't get tried over and over. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
+1. **Login.** The first time, the app shows the normal Eduarte login page in a built-in browser (WebView). Eduarte sends you to the Microsoft login of the school. By default the app never stores the password; Microsoft and Eduarte handle it on their own pages. With "Fill in my email and password" on, the app reads what you type on the Microsoft login page and stores it encrypted with a key in the Android Keystore, which never leaves the phone. It only fills it in on the Microsoft login page, and tries a saved password once per login screen. When Microsoft says the saved password is wrong, it stops filling it in (also during syncs) until you log in once with the right one, so a changed password doesn't get tried over and over and lock the account. The app answers Microsoft's "Stay signed in?" with Yes, so the login lasts instead of expiring after a short while.
 2. **What is stored.** The cookies that the login sets, a "logged in" flag, your settings and your subject list, all in the app's private storage on the phone. Backups and device transfer of this data are disabled (`allowBackup="false"` and `data_extraction_rules.xml`).
 3. **Reading the schedule.** A hidden built-in browser opens `talnet-student.educus.nl/agenda` with those cookies. To see next week it enters a date in the agenda's date field, like you would. The page HTML is parsed on the phone (`AgendaParser.kt`). The page shows no times as text, so the start and end times are calculated from the position of each lesson in the week grid.
 4. **Writing the calendar.** The app creates one local calendar on the phone and only ever touches that calendar. Each event stores a key (date, start time, subject, group), so the next sync updates the event instead of adding a second one.

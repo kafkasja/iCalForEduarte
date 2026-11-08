@@ -47,6 +47,9 @@ class AgendaParserTest {
                 <span class="is-participant">OTHER</span>
               </div></li>
             </ul></div>
+            <div class="agenda--day"><h4 class="lead">di 29 dec</h4><ul></ul></div>
+            <div class="agenda--day"><h4 class="lead">wo 30 dec</h4><ul></ul></div>
+            <div class="agenda--day is-today"><h4 class="lead">do 31 dec</h4><ul></ul></div>
             <div class="agenda--day"><h4 class="lead">vr 1 jan</h4><ul>
               <li class="js-agenda-detail agenda--course" id="l3"><div>
                 <span class="is-subject">PDO-Expert  KLAS01</span>
@@ -54,6 +57,7 @@ class AgendaParserTest {
                 <span class="is-participant">TEACH</span>
               </div></li>
             </ul></div>
+            <div class="agenda--day"><h4 class="lead">za 2 jan</h4><ul></ul></div>
             <div class="agenda--day"><h4 class="lead">zo 3 jan</h4><ul></ul></div>
           </div>
         </div>
@@ -85,10 +89,7 @@ class AgendaParserTest {
     @Test
     fun `day headers across new year get the right year`() {
         val week = AgendaParser.parse(html, pageUrl, zone)
-        assertEquals(
-            listOf(LocalDate.of(2026, 12, 28), LocalDate.of(2027, 1, 1), LocalDate.of(2027, 1, 3)),
-            week.days,
-        )
+        assertEquals((0L..6L).map { LocalDate.of(2026, 12, 28).plusDays(it) }, week.days)
         assertEquals(at(2027, 1, 1, 8, 30), week.lessons[2].startMillis)
     }
 
@@ -105,6 +106,43 @@ class AgendaParserTest {
     fun `page without the week grid is rejected`() {
         val result = runCatching { AgendaParser.parse("<html><body>Inloggen</body></html>", pageUrl, zone) }
         assertTrue(result.exceptionOrNull() is AgendaFormatException)
+    }
+
+    private fun assertRejected(page: String, messagePart: String) {
+        val error = runCatching { AgendaParser.parse(page, pageUrl, zone) }.exceptionOrNull()
+        assertTrue("expected AgendaFormatException, got $error", error is AgendaFormatException)
+        assertTrue("'${error?.message}' should mention '$messagePart'", error!!.message!!.contains(messagePart))
+    }
+
+    @Test
+    fun `lesson without a position is rejected, not dropped`() {
+        assertRejected(html.replace("""<style type="text/css" id="l2-style">#l2 { top: 297px; left: 0%; width: 100%; height: 216px; }</style>""", ""), "has no position")
+    }
+
+    @Test
+    fun `unreadable day header is rejected`() {
+        assertRejected(html.replace("wo 30 dec", "wo 30 xyz"), "day header")
+    }
+
+    @Test
+    fun `a week that isn't seven days is rejected`() {
+        assertRejected(html.replace("""<div class="agenda--day"><h4 class="lead">za 2 jan</h4><ul></ul></div>""", ""), "expected 7 days")
+    }
+
+    @Test
+    fun `rows of different heights are rejected`() {
+        assertRejected(html.replace("#r2 { top: 27px; height: 27px; }", "#r2 { top: 27px; height: 30px; }"), "different heights")
+    }
+
+    @Test
+    fun `row without a position is rejected`() {
+        assertRejected(html.replace("#r2 { top: 27px; height: 27px; }", ""), "schedule row r2")
+    }
+
+    @Test
+    fun `bad time label or selected date is an agenda format error`() {
+        assertRejected(html.replace("<span>08:00</span>", "<span>8.00</span>"), "time label")
+        assertRejected(html.replace("value=\"31-12-2026\"", "value=\"31-13-2026\""), "selected date")
     }
 
     @Test

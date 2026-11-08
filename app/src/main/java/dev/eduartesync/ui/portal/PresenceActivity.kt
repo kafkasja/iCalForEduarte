@@ -18,7 +18,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
@@ -43,9 +42,9 @@ import dev.eduartesync.presence.lessonsByDay
 import dev.eduartesync.presence.lowestFirst
 import dev.eduartesync.presence.presenceLevel
 import dev.eduartesync.presence.presenceNumbers
-import dev.eduartesync.ui.SyncStatus
-import dev.eduartesync.ui.applyScreenInsets
 import dev.eduartesync.ui.prepareScreen
+import dev.eduartesync.ui.setUpScreen
+import dev.eduartesync.ui.showUpdated
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -73,9 +72,7 @@ class PresenceActivity : AppCompatActivity() {
         prepareScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_portal_list)
-        applyScreenInsets(showBack = true)
-        findViewById<CollapsingToolbarLayout>(R.id.collapsing).title = TITLE
-        title = TITLE
+        setUpScreen(TITLE)
         store = PresenceStore(this)
         content = findViewById(R.id.content)
         allDays = savedInstanceState?.getBoolean(STATE_ALL_DAYS) ?: false
@@ -120,10 +117,7 @@ class PresenceActivity : AppCompatActivity() {
         renderedKey = key
         progressView = null
 
-        findViewById<TextView>(R.id.updated).apply {
-            text = stored?.let { "Updated ${SyncStatus.ago(it.fetchedAt, System.currentTimeMillis())}" }
-            visibility = if (stored != null) View.VISIBLE else View.GONE
-        }
+        showUpdated(stored?.fetchedAt)
 
         content.removeAllViews()
         content.addView(header(state.period, overview))
@@ -248,7 +242,7 @@ class PresenceActivity : AppCompatActivity() {
             overview.subjectsRead < overview.subjectsTotal ->
                 "Read ${overview.subjectsRead} of ${overview.subjectsTotal} subjects before the time limit. Pull down to try again."
             subjects.isEmpty() -> "No subject has registered lessons ${overview.period.phrase}."
-            else -> "Lowest first. Subjects without registered lessons are left out."
+            else -> "Subjects without registered lessons are left out."
         }
         note?.let { content.addView(footnote(layoutInflater, content, it)) }
     }

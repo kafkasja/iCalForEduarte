@@ -86,10 +86,13 @@ class LoginActivity : Activity() {
      * before the first login. Same setting as in settings, see [SavedLogin].
      */
     private fun rememberBox() = CheckBox(this).apply {
-        text = "Remember my email and password (encrypted on this phone), so a sync can log in again by itself"
+        text = "Remember my email and password, encrypted on this phone"
         isChecked = fillLogin
-        val pad = (12 * resources.displayMetrics.density).toInt()
-        setPadding(pad, pad, pad, pad)
+        val dp = resources.displayMetrics.density
+        // The box has its own inset of about 4dp, which makes the usual 16dp side margin.
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            .apply { marginStart = (12 * dp).toInt(); marginEnd = (12 * dp).toInt() }
+        setPadding((8 * dp).toInt(), (4 * dp).toInt(), 0, (4 * dp).toInt())
         setOnCheckedChangeListener { _, on ->
             SavedLogin.setEnabled(this@LoginActivity, on)
             // Ticked after typing: save what was typed on this screen so far.

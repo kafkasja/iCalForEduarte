@@ -1,5 +1,6 @@
 package dev.eduartesync.ui
 
+import dev.eduartesync.calendar.NO_CHANGES
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -67,7 +68,7 @@ object SyncStatus {
         }
     }
 
-    /** One line for the top of the Rooster tab, e.g. "Up to date · 3 min ago". */
+    /** One line for the Rooster tab's status icon (what a screen reader says), e.g. "Up to date · 3 min ago". */
     fun compact(summary: StatusSummary, lastSyncAt: Long, now: Long): String = when (summary.state) {
         SyncState.OK -> "Up to date · ${ago(lastSyncAt, now)}"
         SyncState.STALE -> "Might be out of date · ${ago(lastSyncAt, now)}"
@@ -75,6 +76,14 @@ object SyncStatus {
         SyncState.LOGIN_NEEDED -> "Log in needed"
         SyncState.NEVER, SyncState.SYNCING, SyncState.WAITING -> summary.headline
     }
+
+    /**
+     * Whether the Rooster tab shows the result of a finished sync as a message: always when the
+     * user started it ([userStarted]), otherwise only when it failed or the schedule changed. The
+     * sync on opening the app happens every time, and the status icon already says it worked.
+     */
+    fun shouldAnnounce(result: String, userStarted: Boolean): Boolean =
+        userStarted || !result.startsWith("Synced") || !result.endsWith(": $NO_CHANGES")
 
     /** Opening the app syncs, unless the last sync succeeded moments ago (e.g. reopened right away). */
     fun shouldSyncOnOpen(lastSyncAt: Long, lastResult: String?, now: Long): Boolean =

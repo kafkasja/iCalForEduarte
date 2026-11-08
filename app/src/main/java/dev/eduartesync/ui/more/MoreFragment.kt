@@ -51,7 +51,7 @@ class MoreFragment : Fragment(R.layout.fragment_more) {
         super.onResume()
         val content = requireView().findViewById<LinearLayout>(R.id.content)
         content.removeAllViews()
-        sections().forEach { addSection(content, it) }
+        sections().forEachIndexed { i, section -> addSection(content, section, first = i == 0) }
     }
 
     private fun sections() = listOf(
@@ -76,10 +76,12 @@ class MoreFragment : Fragment(R.layout.fragment_more) {
         )),
     )
 
-    private fun addSection(parent: LinearLayout, section: Section) {
+    private fun addSection(parent: LinearLayout, section: Section, first: Boolean) {
         val inflater = layoutInflater
         val header = inflater.inflate(R.layout.item_section_header, parent, false) as TextView
         header.text = section.title
+        // The top bar already leaves room above the first one.
+        if (first) header.setPadding(header.paddingLeft, header.paddingBottom, header.paddingRight, header.paddingBottom)
         parent.addView(header)
 
         val card = inflater.inflate(R.layout.item_card, parent, false) as MaterialCardView

@@ -8,17 +8,16 @@ import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.snackbar.Snackbar
 import dev.eduartesync.R
 import dev.eduartesync.grades.GradesStore
 import dev.eduartesync.grades.gradesFetcher
 import dev.eduartesync.grades.groupBySubject
 import dev.eduartesync.grades.recentGrades
-import dev.eduartesync.ui.SyncStatus
+import dev.eduartesync.ui.MainActivity
+import dev.eduartesync.ui.updatedText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import com.google.android.material.R as MaterialR
 
 /**
  * Cijfers tab: the grades of the last fetch (kept, so they show offline), newest first and per
@@ -48,6 +47,12 @@ class GradesFragment : Fragment(R.layout.fragment_grades) {
         if (savedInstanceState == null && (stored == null || System.currentTimeMillis() - stored.fetchedAt > STALE_MS)) {
             fetch(userAsked = false)
         }
+    }
+
+    /** Coming back to this tab: the main screen cleared the subtitle when switching. */
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) render()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -87,9 +92,11 @@ class GradesFragment : Fragment(R.layout.fragment_grades) {
         val grades = stored?.grades.orEmpty()
         val inflater = layoutInflater
 
-        view.findViewById<TextView>(R.id.updated).apply {
-            text = stored?.let { "Updated ${SyncStatus.ago(it.fetchedAt, System.currentTimeMillis())}" }
-            visibility = if (stored != null && grades.isNotEmpty()) View.VISIBLE else View.GONE
+        // Under the tab's title, like on the portal screens; only this tab's while it shows.
+        if (!isHidden) {
+            (requireActivity() as MainActivity).setToolbarSubtitle(
+                stored?.takeIf { grades.isNotEmpty() }?.let { updatedText(it.fetchedAt, System.currentTimeMillis()) },
+            )
         }
 
         val recent = recentGrades(grades)

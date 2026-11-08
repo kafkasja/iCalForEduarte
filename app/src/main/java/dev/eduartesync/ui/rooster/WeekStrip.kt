@@ -15,7 +15,7 @@ import dev.eduartesync.R
 import com.google.android.material.R as MaterialR
 
 /**
- * The row of days under the week header: the chosen day filled in, today outlined, a dot under
+ * The row of days under the top bar: the chosen day filled in, today outlined, a dot under
  * days with lessons. Tapping a day picks it.
  */
 class WeekStrip(private val container: LinearLayout, private val onPick: (LocalDate) -> Unit) {

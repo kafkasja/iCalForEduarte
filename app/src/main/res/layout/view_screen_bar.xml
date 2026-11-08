@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Top bar of a secondary screen (Settings, Subjects, the portal pages): back arrow, title and,
+     for portal pages, "Updated ..." as the subtitle. Set up by setUpScreen() in Screens.kt. -->
+<com.google.android.material.appbar.AppBarLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/appBar"
+    style="@style/ScreenAppBar">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:elevation="0dp" />
+</com.google.android.material.appbar.AppBarLayout>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Main screen: top bar with the tab's title and a gear for settings, the tab, bottom navigation. -->
+<!-- Main screen: top bar with the tab's title and a gear for settings (hidden on the Rooster tab,
+     which has its own), the tab, bottom navigation. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"

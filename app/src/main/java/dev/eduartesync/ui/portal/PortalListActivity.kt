@@ -11,20 +11,17 @@ import androidx.annotation.DrawableRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.android.material.appbar.CollapsingToolbarLayout
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import dev.eduartesync.R
 import dev.eduartesync.auth.LoginActivity
 import dev.eduartesync.records.PortalStore
 import dev.eduartesync.records.Record
-import dev.eduartesync.ui.SyncStatus
-import dev.eduartesync.ui.applyScreenInsets
 import dev.eduartesync.ui.prepareScreen
+import dev.eduartesync.ui.setUpScreen
+import dev.eduartesync.ui.showUpdated
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import com.google.android.material.R as MaterialR
 
 /**
  * A screen that shows one portal page, opened from the Meer tab. It works like the Cijfers
@@ -58,9 +55,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
         prepareScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_portal_list)
-        applyScreenInsets(showBack = true)
-        findViewById<CollapsingToolbarLayout>(R.id.collapsing).title = screenTitle
-        title = screenTitle
+        setUpScreen(screenTitle)
         store = PortalStore(this)
 
         refresh = findViewById(R.id.refresh)
@@ -101,10 +96,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
         val hasContent = stored != null && !isEmpty(stored.value)
         if (stored != null && hasContent) render(content, stored.value)
 
-        findViewById<TextView>(R.id.updated).apply {
-            text = stored?.let { "Updated ${SyncStatus.ago(it.fetchedAt, System.currentTimeMillis())}" }
-            visibility = if (hasContent) View.VISIBLE else View.GONE
-        }
+        showUpdated(stored?.fetchedAt?.takeIf { hasContent })
 
         val failed = problem
         val (title, message) = when {

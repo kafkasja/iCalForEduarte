@@ -84,4 +84,32 @@ class ScheduleTest {
         assertEquals(day, mondayOf(day.plusDays(6)))
         assertEquals(day, mondayOf(day))
     }
+
+    @Test
+    fun `day header says which day, how many lessons and from when to when`() {
+        val lessons = listOf(engels, pdo)
+        assertEquals("Today · 2 lessons · 08:30 – 11:30", dayHeader(day, today = day, lessons))
+        assertEquals("Tomorrow · 2 lessons · 08:30 – 11:30", dayHeader(day, today = day.minusDays(1), lessons))
+        assertEquals("Yesterday · 1 lesson · 08:30 – 10:00", dayHeader(day, today = day.plusDays(1), listOf(pdo)))
+        assertEquals("Monday · 2 lessons · 08:30 – 11:30", dayHeader(day, today = day.plusDays(2), lessons))
+        assertEquals("Monday · 2 lessons (1 cancelled) · 08:30 – 11:30", dayHeader(day, today = day.plusDays(2), listOf(pdo, engels.copy(cancelled = true))))
+        assertEquals("Wednesday", dayHeader(day.plusDays(2), today = day.minusDays(7), emptyList()))
+    }
+
+    @Test
+    fun `week hours leave out cancelled lessons`() {
+        assertEquals(135L, lessonMinutes(listOf(pdo, engels)))
+        assertEquals(90L, lessonMinutes(listOf(pdo, engels.copy(cancelled = true))))
+        assertEquals(0L, lessonMinutes(emptyList()))
+    }
+
+    @Test
+    fun `week title shows the hours with a Dutch comma, or none`() {
+        assertEquals("Week 46 · 13 h", weekTitle(day, 13 * 60))
+        assertEquals("Week 46 · 12,5 h", weekTitle(day, 12 * 60 + 30))
+        assertEquals("Week 46 · 2,3 h", weekTitle(day, 135))
+        assertEquals("Week 46 · 13 h", weekTitle(day, 13 * 60 - 1)) // rounds to 13,0
+        assertEquals("Week 46", weekTitle(day, 0))
+        assertEquals("Week 53", weekTitle(LocalDate.of(2026, 12, 28), 0))
+    }
 }

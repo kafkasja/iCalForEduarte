@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.viewpager2.widget.ViewPager2
-import com.google.android.material.color.MaterialColors
 import com.google.android.material.snackbar.Snackbar
 import dev.eduartesync.Config
 import dev.eduartesync.R
@@ -24,6 +23,7 @@ import dev.eduartesync.calendar.CalendarWriter
 import dev.eduartesync.settings.AppSettings
 import dev.eduartesync.sync.SyncScheduler
 import dev.eduartesync.ui.MainActivity
+import dev.eduartesync.ui.SyncStatus
 import dev.eduartesync.ui.SyncWork
 import dev.eduartesync.ui.observeSyncWork
 import kotlinx.coroutines.Dispatchers
@@ -31,14 +31,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.temporal.WeekFields
-import java.util.Locale
-import com.google.android.material.R as MaterialR
 
 /**
- * Rooster tab: the lessons from the "Eduarte rooster" calendar, a day per page, with the sync
- * status on top. Pull down to sync. Reloads by itself whenever the calendar changes.
+ * Rooster tab: the lessons from the "Eduarte rooster" calendar, a day per page, under its own
+ * top bar with the week, the arrows and the sync status. Pull down to sync. Reloads by itself
+ * whenever the calendar changes.
  */
 class RoosterFragment : Fragment(R.layout.fragment_rooster) {
     private lateinit var settings: AppSettings
@@ -46,7 +43,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
     private lateinit var refresh: SwipeRefreshLayout
     private lateinit var loadingLine: LoadingLine
     private lateinit var weekStrip: WeekStrip
-    private lateinit var status: StatusLine
+    private lateinit var status: StatusIcon
     private val pages = DayPagerAdapter(onLesson = { showLessonSheet(requireContext(), it) }, onEmptyAction = ::onEmptyAction)
 
     private var data: ScheduleData? = null
@@ -55,6 +52,9 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
 
     /** When the user last pulled to refresh, to keep the spinner up until the sync really starts. */
     private var pulledAt = 0L
+
+    /** The running sync was started by the user here, so its result is always shown. */
+    private var userStarted = false
 
     private val handler = Handler(Looper.getMainLooper())
     private val reloadSoon = Runnable { reload() }
@@ -92,8 +92,8 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         settings = AppSettings(requireContext())
         selected = savedInstanceState?.getString(STATE_SELECTED)?.let(LocalDate::parse)
 
-        status = StatusLine(
-            view.findViewById(R.id.statusCard),
+        status = StatusIcon(
+            view.findViewById(R.id.syncStatus),
             onSync = ::startSync,
             onLogIn = { main().openLogin() },
             onSettings = { main().openSettings() },
@@ -112,13 +112,14 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         })
 
         refresh = view.findViewById(R.id.refresh)
-        loadingLine = LoadingLine.attach(refresh) { startSync() }
+        loadingLine = LoadingLine.attach(refresh, over = view.findViewById(R.id.body)) { startSync() }
         // The pager can't scroll up itself; ask the list of the day that is showing.
         refresh.setOnChildScrollUpCallback { _, _ -> currentDayList()?.canScrollVertically(-1) == true }
 
         view.findViewById<View>(R.id.prevWeek).setOnClickListener { jumpWeeks(-1) }
         view.findViewById<View>(R.id.nextWeek).setOnClickListener { jumpWeeks(1) }
-        view.findViewById<View>(R.id.today).setOnClickListener { goTo(today(), smooth = true) }
+        view.findViewById<View>(R.id.weekTitle).setOnClickListener { goTo(today(), smooth = true) }
+        view.findViewById<View>(R.id.settings).setOnClickListener { main().openSettings() }
 
         observeSyncWork(requireContext(), viewLifecycleOwner, ::onSyncWork)
     }
@@ -171,31 +172,23 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         showWeek()
     }
 
-    /** Week header, strip and buttons for the week of the chosen day. */
+    /** Title, strip and arrows for the week of the chosen day. */
     private fun showWeek() {
         val data = data ?: return
         val day = selected ?: return
         val view = view ?: return
         val monday = mondayOf(day)
         val week = data.days.filter { mondayOf(it) == monday }
-        view.findViewById<TextView>(R.id.weekLabel).text = weekLabel(monday, week)
+        // All seven days: a weekend lesson counts even on a week whose weekend has no page.
+        val minutes = lessonMinutes((0L..6L).flatMap { data.lessonsOn(monday.plusDays(it)) })
+        view.findViewById<TextView>(R.id.weekTitle).apply {
+            text = weekTitle(monday, minutes)
+            contentDescription = "$text. Go to today"
+        }
         weekStrip.show(week, day, today()) { data.lessonsOn(it).size }
 
         view.findViewById<View>(R.id.prevWeek).isEnabled = data.days.first() < monday
         view.findViewById<View>(R.id.nextWeek).isEnabled = data.days.last() >= monday.plusWeeks(1)
-        val todayIndex = data.indexOf(today())
-        view.findViewById<View>(R.id.today).visibility =
-            if (pager.currentItem == todayIndex) View.INVISIBLE else View.VISIBLE
-    }
-
-    /** "Week 46 · 9 – 13 Nov", or "Week 49 · 30 Nov – 4 Dec" across months. */
-    private fun weekLabel(monday: LocalDate, week: List<LocalDate>): String {
-        val number = monday.get(WeekFields.ISO.weekOfWeekBasedYear())
-        val first = week.first()
-        val last = week.last()
-        val range = if (first.month == last.month) "${first.dayOfMonth} – ${last.format(DAY_MONTH)}"
-        else "${first.format(DAY_MONTH)} – ${last.format(DAY_MONTH)}"
-        return "Week $number · $range"
     }
 
     private fun jumpWeeks(weeks: Long) {
@@ -215,7 +208,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         return pagesList.findViewHolderForAdapterPosition(pager.currentItem)?.itemView as? RecyclerView
     }
 
-    /** Pull to refresh, the status line's button, or "Sync now" on an empty day. */
+    /** Pull to refresh, "Sync now" in the status details, or "Sync now" on an empty day. */
     private fun startSync() {
         val context = requireContext()
         when {
@@ -229,6 +222,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
             }
             else -> {
                 SyncScheduler.syncNow(context, quiet = true)
+                userStarted = true
                 pulledAt = System.currentTimeMillis()
                 loadingLine.loading = true
                 handler.postDelayed(updateSpinner, WAIT_SPINNER_MS)
@@ -241,21 +235,28 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         work = new
         showSpinner()
         status.show(work)
-        if (finished && !isHidden && isResumed) showResult()
+        if (finished) {
+            if (!isHidden && isResumed) showResult(userStarted)
+            userStarted = false
+        }
     }
 
     /**
      * The spinner follows the sync. A sync waiting for internet keeps it up only briefly after a
-     * pull; the status line then explains it starts once you're online.
+     * pull; the status details then explain it starts once you're online.
      */
     private fun showSpinner() {
         val justPulled = System.currentTimeMillis() - pulledAt < WAIT_SPINNER_MS
         loadingLine.loading = work.running || (work.waiting && justPulled)
     }
 
-    /** What the toast says for a sync started outside the app, as a snackbar above the tabs. */
-    private fun showResult() {
+    /**
+     * What the toast says for a sync started outside the app, as a snackbar above the tabs; see
+     * [SyncStatus.shouldAnnounce] for when.
+     */
+    private fun showResult(userStarted: Boolean) {
         val result = settings.lastSyncResult?.lineSequence()?.firstOrNull()?.takeIf { it.isNotBlank() } ?: return
+        if (!SyncStatus.shouldAnnounce(result, userStarted)) return
         val snackbar = Snackbar.make(requireView(), result, Snackbar.LENGTH_LONG)
             .setAnchorView(requireActivity().findViewById(R.id.bottomNav))
         if (!result.startsWith("Synced")) snackbar.setAction("Details") { status.showDetails() }
@@ -278,6 +279,5 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         const val MINUTE = 60_000L
         const val RELOAD_DELAY_MS = 400L
         const val WAIT_SPINNER_MS = 4_000L
-        val DAY_MONTH: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
     }
 }

@@ -6,26 +6,7 @@
     android:layout_height="match_parent"
     android:background="?attr/screenColor">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBar"
-        style="@style/ScreenAppBar">
-
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            style="?attr/collapsingToolbarLayoutLargeStyle"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
-            app:contentScrim="?attr/screenColor"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
-            app:title="Settings">
-
-            <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:elevation="0dp"
-                app:layout_collapseMode="pin" />
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
-    </com.google.android.material.appbar.AppBarLayout>
+    <include layout="@layout/view_screen_bar" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll"
@@ -45,13 +26,15 @@
             <!-- Status: is my calendar up to date? -->
             <com.google.android.material.card.MaterialCardView
                 style="@style/Card"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:paddingHorizontal="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingBottom="12dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -71,7 +54,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:accessibilityLiveRegion="polite"
-                            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                            android:textAppearance="?attr/textAppearanceTitleLarge"
                             android:textColor="?attr/colorOnSurface" />
                     </LinearLayout>
 
@@ -80,15 +63,14 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="26dp"
-                        android:paddingTop="2dp"
-                        android:textAppearance="?attr/textAppearanceBodyLarge"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textColor="?attr/colorOnSurface" />
 
                     <com.google.android.material.progressindicator.LinearProgressIndicator
                         android:id="@+id/syncProgress"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="8dp"
                         android:indeterminate="true"
                         android:visibility="gone"
                         app:trackCornerRadius="2dp" />
@@ -97,7 +79,7 @@
                         android:id="@+id/coverage"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingTop="16dp"
+                        android:paddingTop="8dp"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textColor="?attr/colorOnSurface" />
 
@@ -113,7 +95,7 @@
                         android:id="@+id/status"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:paddingTop="12dp"
+                        android:paddingTop="8dp"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textIsSelectable="true" />
@@ -121,7 +103,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="8dp"
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
@@ -166,7 +148,7 @@
                             <TextView android:id="@+id/roomValue" style="@style/RowValue" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="Lock screens and widgets often show only the name, so this shows the room there too." />
+                                android:text="Shows the room on lock screens that only show the name." />
                         </LinearLayout>
                         <ImageView style="@style/RowChevron" />
                     </LinearLayout>
@@ -178,7 +160,7 @@
                             <TextView style="@style/RowTitle" android:text="Subjects (beta)" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="Your own name, emoji and color per subject" />
+                                android:text="Your own name, emoji and color" />
                         </LinearLayout>
                         <ImageView style="@style/RowChevron" />
                     </LinearLayout>
@@ -193,7 +175,7 @@
             </com.google.android.material.card.MaterialCardView>
             <TextView
                 style="@style/Footnote"
-                android:text="Lessons go into a separate calendar called &quot;Eduarte rooster&quot;. Clearing removes it; the next sync brings it back." />
+                android:text="Lessons go into a separate &quot;Eduarte rooster&quot; calendar." />
 
             <!-- Background sync and notifications -->
             <TextView style="@style/SectionHeader" android:text="Background sync &amp; notifications" />
@@ -209,7 +191,7 @@
                             <TextView style="@style/RowTitle" android:text="Sync automatically" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="About every 12 hours. When off, tap the app icon to sync." />
+                                android:text="About every 12 hours." />
                         </LinearLayout>
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/autoSync"
@@ -227,7 +209,7 @@
                             <TextView android:id="@+id/notificationStatus" style="@style/RowValue" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="Change this in Android settings" />
+                                android:text="Set in Android settings" />
                         </LinearLayout>
                         <ImageView style="@style/RowChevron" />
                     </LinearLayout>
@@ -248,7 +230,7 @@
                             <TextView style="@style/RowTitle" android:text="Fill in my email and password" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="Saved encrypted on this phone at your next login, so only the Authenticator is left. Turning it off deletes them." />
+                                android:text="Saved encrypted at your next login; off deletes them." />
                         </LinearLayout>
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/saveLogin"
@@ -265,7 +247,7 @@
                             <TextView style="@style/RowTitle" android:text="Login log" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="What happened at recent logins, to find out why it expires. No passwords or codes." />
+                                android:text="Why the login expires. No passwords or codes." />
                         </LinearLayout>
                         <ImageView style="@style/RowChevron" />
                     </LinearLayout>
@@ -278,9 +260,6 @@
                         android:text="Log out / switch account" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
-            <TextView
-                style="@style/Footnote"
-                android:text="Logging out removes your Eduarte login and a saved password from this phone. The calendar stays." />
 
             <!-- About -->
             <TextView style="@style/SectionHeader" android:text="About" />
@@ -322,7 +301,7 @@
                             <TextView style="@style/RowTitle" android:text="All versions" />
                             <TextView
                                 style="@style/RowSummary"
-                                android:text="Every release, also older ones" />
+                                android:text="Also older releases" />
                         </LinearLayout>
                         <ImageView style="@style/RowChevron" />
                     </LinearLayout>
@@ -330,7 +309,7 @@
             </com.google.android.material.card.MaterialCardView>
             <TextView
                 style="@style/Footnote"
-                android:text="Downloads come from the GitHub Releases page. Install over this version to keep your login. For an older version, uninstall first." />
+                android:text="Install over this version to keep your login; uninstall first for an older one." />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -2,8 +2,7 @@ package dev.eduartesync.ui.rooster
 
 import android.content.res.ColorStateList
 import android.view.View
-import android.widget.Button
-import android.widget.TextView
+import android.widget.ImageView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import dev.eduartesync.Config
 import dev.eduartesync.R
@@ -18,21 +17,25 @@ import dev.eduartesync.ui.stateColor
 import java.time.LocalDate
 
 /**
- * The compact status line at the top of the Rooster tab ("Up to date · 3 min ago"), with a
- * button when something needs doing. Tapping it shows the full status, like the settings page.
+ * The sync status as a small icon in the Rooster tab's top bar: a check when up to date, a
+ * spinner while syncing, a clock when it may be out of date, an alert when it failed or needs a
+ * login. It takes no room of its own; tapping it shows the full status, like the settings page,
+ * with what to do next.
  */
-class StatusLine(
-    private val card: View,
+class StatusIcon(
+    private val button: View,
     private val onSync: () -> Unit,
     private val onLogIn: () -> Unit,
     private val onSettings: () -> Unit,
 ) {
-    private val context = card.context
+    private val context = button.context
     private val settings = AppSettings(context)
+    private val icon = button.findViewById<ImageView>(R.id.syncIcon)
+    private val progress = button.findViewById<View>(R.id.syncProgress)
     private var summary: StatusSummary? = null
 
     init {
-        card.setOnClickListener { showDetails() }
+        button.setOnClickListener { showDetails() }
     }
 
     fun show(work: SyncWork) {
@@ -46,25 +49,19 @@ class StatusLine(
             now = now,
         ).also { summary = it }
 
-        card.findViewById<TextView>(R.id.statusText).text = SyncStatus.compact(summary, settings.lastSyncAt, now)
         val busy = summary.state == SyncState.SYNCING || summary.state == SyncState.WAITING
-        card.findViewById<View>(R.id.statusProgress).visibility = if (busy) View.VISIBLE else View.GONE
-        card.findViewById<View>(R.id.statusDot).apply {
-            visibility = if (busy) View.INVISIBLE else View.VISIBLE
-            backgroundTintList = ColorStateList.valueOf(context.getColor(stateColor(summary.state)))
-        }
-
-        val action = when {
-            summary.action == StatusAction.LOG_IN -> "Log in"
-            summary.state == SyncState.FAILED -> "Retry"
-            summary.state == SyncState.NEVER || summary.state == SyncState.STALE -> "Sync"
-            else -> null
-        }
-        card.findViewById<Button>(R.id.statusAction).apply {
-            visibility = if (action == null) View.GONE else View.VISIBLE
-            text = action
-            setOnClickListener { if (summary.action == StatusAction.LOG_IN) onLogIn() else onSync() }
-        }
+        progress.visibility = if (busy) View.VISIBLE else View.GONE
+        icon.visibility = if (busy) View.INVISIBLE else View.VISIBLE
+        icon.setImageResource(
+            when (summary.state) {
+                SyncState.OK -> R.drawable.ic_check_circle
+                SyncState.STALE -> R.drawable.ic_schedule
+                SyncState.FAILED, SyncState.LOGIN_NEEDED -> R.drawable.ic_error
+                SyncState.NEVER, SyncState.SYNCING, SyncState.WAITING -> R.drawable.ic_sync
+            },
+        )
+        icon.imageTintList = ColorStateList.valueOf(context.getColor(stateColor(summary.state)))
+        button.contentDescription = "Sync status: ${SyncStatus.compact(summary, settings.lastSyncAt, now)}. Tap for details"
     }
 
     /** Headline, explanation, which days are covered and the last result, with what to do next. */

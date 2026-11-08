@@ -1,12 +1,18 @@
 package dev.eduartesync.ui.rooster
 
+import dev.eduartesync.Config
 import dev.eduartesync.calendar.CalendarInstance
 import dev.eduartesync.calendar.readEventText
+import dev.eduartesync.grades.formatDutch
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
+import java.time.temporal.WeekFields
+import java.util.Locale
 
 /** One lesson as the Rooster tab shows it. Free of Android classes, so it can be tested. */
 data class ScheduleLesson(
@@ -91,6 +97,42 @@ fun pageDays(first: LocalDate, last: LocalDate, daysWithLessons: Set<LocalDate>)
 fun mondayOf(date: LocalDate): LocalDate = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
 fun dateOf(millis: Long, zone: ZoneId): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+
+/**
+ * The one line above a day's lessons: "Tomorrow · 3 lessons · 13:15 – 16:30", or the weekday
+ * ("Wednesday · ...") for days further away. The date itself is in the week strip right above.
+ */
+fun dayHeader(date: LocalDate, today: LocalDate, lessons: List<ScheduleLesson>): String {
+    val day = when (date) {
+        today -> "Today"
+        today.plusDays(1) -> "Tomorrow"
+        today.minusDays(1) -> "Yesterday"
+        else -> date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)
+    }
+    if (lessons.isEmpty()) return day
+    val cancelled = lessons.count { it.cancelled }
+    val count = (if (lessons.size == 1) "1 lesson" else "${lessons.size} lessons") +
+        (if (cancelled > 0) " ($cancelled cancelled)" else "")
+    val hours = "${clock(lessons.minOf { it.startMillis })} – ${clock(lessons.maxOf { it.endMillis })}"
+    return "$day · $count · $hours"
+}
+
+/** Minutes of lesson time in [lessons], leaving out cancelled ones. */
+fun lessonMinutes(lessons: List<ScheduleLesson>): Long =
+    lessons.filter { !it.cancelled }.sumOf { (it.endMillis - it.startMillis) / 60_000 }
+
+/** "Week 46 · 13 h", "Week 46 · 12,5 h", or just "Week 46" for a week without lessons. */
+fun weekTitle(monday: LocalDate, minutes: Long): String {
+    val number = monday.get(WeekFields.ISO.weekOfWeekBasedYear())
+    if (minutes <= 0) return "Week $number"
+    val hours = formatDutch(minutes / 60.0).removeSuffix(",0")
+    return "Week $number · $hours h"
+}
+
+private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
+
+/** "08:30" in the school's time zone. */
+internal fun clock(millis: Long): String = Instant.ofEpochMilli(millis).atZone(Config.ZONE).format(timeFormat)
 
 /** "45 min", "1 h", "1 h 30 min". */
 fun formatDuration(minutes: Long): String = when {

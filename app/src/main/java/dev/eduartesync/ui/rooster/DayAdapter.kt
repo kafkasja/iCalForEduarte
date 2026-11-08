@@ -12,9 +12,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.MaterialColors
-import dev.eduartesync.Config
 import dev.eduartesync.R
-import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -27,10 +25,7 @@ sealed interface DayRow {
     data class Empty(val kind: EmptyDay, val past: Boolean) : DayRow
 }
 
-private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
 private val dayFormat = DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.ENGLISH)
-
-internal fun clock(millis: Long): String = Instant.ofEpochMilli(millis).atZone(Config.ZONE).format(timeFormat)
 
 /** The list of one day in the Rooster pager: header, then lessons with free time, or why it's empty. */
 class DayAdapter(
@@ -75,28 +70,10 @@ class DayAdapter(
     }
 
     private fun bindHeader(view: View, row: DayRow.Header) {
-        view.findViewById<TextView>(R.id.date).text = row.date.format(dayFormat)
-        val relative = when (row.date) {
-            row.today -> "Today"
-            row.today.plusDays(1) -> "Tomorrow"
-            row.today.minusDays(1) -> "Yesterday"
-            else -> null
-        }
-        val lessons = row.lessons
-        val count = when {
-            lessons.isEmpty() -> null
-            else -> {
-                val cancelled = lessons.count { it.cancelled }
-                val base = if (lessons.size == 1) "1 lesson" else "${lessons.size} lessons"
-                if (cancelled > 0) "$base ($cancelled cancelled)" else base
-            }
-        }
-        val hours = if (lessons.isEmpty()) null else "${clock(lessons.minOf { it.startMillis })} – ${clock(lessons.maxOf { it.endMillis })}"
-        val summary = listOfNotNull(relative, count, hours).joinToString(" · ")
-        view.findViewById<TextView>(R.id.summary).apply {
-            text = summary
-            visibility = if (summary.isEmpty()) View.GONE else View.VISIBLE
-        }
+        val text = dayHeader(row.date, row.today, row.lessons)
+        (view as TextView).text = text
+        // The week strip shows the date; a screen reader gets it here too.
+        view.contentDescription = "${row.date.format(dayFormat)}, $text"
     }
 
     private fun bindLesson(view: View, item: DayItem.Lesson, ended: Boolean) {

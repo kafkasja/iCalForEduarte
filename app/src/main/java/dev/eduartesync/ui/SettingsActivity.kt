@@ -49,8 +49,7 @@ class SettingsActivity : AppCompatActivity() {
         prepareScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
-        applyScreenInsets(showBack = true)
-        title = "Settings"
+        setUpScreen("Settings")
         settings = AppSettings(this)
 
         findViewById<View>(R.id.syncNow).setOnClickListener { SyncScheduler.syncNow(this, quiet = true) }

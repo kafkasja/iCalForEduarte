@@ -31,8 +31,9 @@ import dev.eduartesync.ui.rooster.RoosterFragment
  * (see [syncIfDue]), so tapping the icon still means "get my latest rooster".
  */
 class MainActivity : AppCompatActivity() {
-    private enum class Tab(val itemId: Int, val tag: String, val title: Int) {
-        ROOSTER(R.id.tab_rooster, "rooster", R.string.tab_rooster),
+    /** [title] null: the tab has its own top bar (the Rooster tab), so the screen's is hidden. */
+    private enum class Tab(val itemId: Int, val tag: String, val title: Int?) {
+        ROOSTER(R.id.tab_rooster, "rooster", null),
         CIJFERS(R.id.tab_cijfers, "cijfers", R.string.tab_cijfers),
         MEER(R.id.tab_meer, "meer", R.string.tab_meer),
     }
@@ -150,9 +151,16 @@ class MainActivity : AppCompatActivity() {
 
     fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
 
+    /** A line under the tab's title, e.g. "Updated 5 min ago" on the Cijfers tab. */
+    fun setToolbarSubtitle(text: String?) {
+        toolbar.subtitle = text
+    }
+
     /** Shows [tab] and hides the others; each tab keeps its state (scroll position, chosen day). */
     private fun showTab(tab: Tab) {
-        toolbar.setTitle(tab.title)
+        toolbar.visibility = if (tab.title == null) View.GONE else View.VISIBLE
+        tab.title?.let(toolbar::setTitle)
+        toolbar.subtitle = null
         val fm = supportFragmentManager
         val transaction = fm.beginTransaction().setReorderingAllowed(true)
         for (other in Tab.entries) {

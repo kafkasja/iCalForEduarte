@@ -19,6 +19,7 @@ import dev.eduartesync.portal.PortalGroup
 import dev.eduartesync.portal.PortalSubject
 import dev.eduartesync.portal.Programme
 import dev.eduartesync.portal.StudyInfo
+import dev.eduartesync.portal.StudyProgress
 import dev.eduartesync.portal.StudyRecordsSource
 import dev.eduartesync.portal.StudySource
 import dev.eduartesync.records.DocumentDownloader
@@ -75,7 +76,7 @@ class DocumentsActivity : PortalListActivity<List<PortalDocument>>() {
             ) { open(document) }
         }
         content.addView(cardOf(layoutInflater, content, rows))
-        content.addView(footnote(layoutInflater, content, "Tap a document to open it. It is downloaded with your Eduarte login and opened in your PDF app."))
+        content.addView(footnote(layoutInflater, content, "Opened with your Eduarte login, in your PDF app."))
     }
 
     /**
@@ -149,7 +150,6 @@ class CoursesActivity : PortalListActivity<List<PortalSubject>>() {
             )
         }
         content.addView(cardOf(layoutInflater, content, rows))
-        content.addView(footnote(layoutInflater, content, "Active subjects of your current programme, as Eduarte lists them under Studie › Vakken."))
     }
 }
 
@@ -229,14 +229,15 @@ class StudyActivity : PortalListActivity<StudyInfo>() {
 
     override suspend fun fetch() = StudySource(this).fetch()
 
-    override fun isEmpty(value: StudyInfo) = value.programmes.isEmpty() && value.progress == null
+    override fun isEmpty(value: StudyInfo) = value.programmes.isEmpty() && value.progress?.hasPoints() != true
 
     override fun render(content: LinearLayout, value: StudyInfo) {
         if (value.programmes.isNotEmpty()) {
-            content.addView(sectionHeader(layoutInflater, content, "Programmes").apply { setPadding(paddingLeft, 8.dpToPx(), paddingRight, paddingBottom) })
+            // Right under the top bar, which already leaves room above it.
+            content.addView(sectionHeader(layoutInflater, content, "Programmes").apply { setPadding(paddingLeft, 0, paddingRight, paddingBottom) })
             content.addView(cardOf(layoutInflater, content, value.programmes.map { programmeRow(content, it) }))
         }
-        val progress = value.progress ?: return
+        val progress = value.progress?.takeIf { it.hasPoints() } ?: return
         val charts = progress.charts.filter { it.achieved != null || it.provisional != null || it.notAchieved != null }
         if (charts.isNotEmpty() || progress.rows.isNotEmpty()) {
             content.addView(sectionHeader(layoutInflater, content, "Study points"))
@@ -303,4 +304,16 @@ class StudyActivity : PortalListActivity<StudyInfo>() {
     private fun points(value: Double) = if (value % 1.0 == 0.0) value.toLong().toString() else formatDutch(value)
 
     private fun Int.dpToPx() = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, toFloat(), resources.displayMetrics).toInt()
+}
+
+/**
+ * Whether the study points say anything. Eduarte shows the table and charts with all zeros
+ * before any points are earned, which is just an empty section.
+ */
+internal fun StudyProgress.hasPoints(): Boolean {
+    fun counts(value: Double?) = value != null && value != 0.0
+    return charts.any { counts(it.achieved) || counts(it.provisional) || counts(it.notAchieved) } ||
+        (rows + listOfNotNull(total)).any {
+            counts(it.achievedPoints) || counts(it.totalPoints) || counts(it.provisionalPoints) || !it.result.isNullOrBlank()
+        }
 }

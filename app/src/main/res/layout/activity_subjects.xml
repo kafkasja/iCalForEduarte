@@ -6,26 +6,7 @@
     android:layout_height="match_parent"
     android:background="?attr/screenColor">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:id="@+id/appBar"
-        style="@style/ScreenAppBar">
-
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            style="?attr/collapsingToolbarLayoutLargeStyle"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/collapsingToolbarLayoutLargeSize"
-            app:contentScrim="?attr/screenColor"
-            app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
-            app:title="Subjects">
-
-            <com.google.android.material.appbar.MaterialToolbar
-                android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:elevation="0dp"
-                app:layout_collapseMode="pin" />
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
-    </com.google.android.material.appbar.AppBarLayout>
+    <include layout="@layout/view_screen_bar" />
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll"
@@ -43,9 +24,9 @@
 
             <TextView
                 style="@style/Footnote"
-                android:paddingTop="0dp"
+                android:paddingTop="4dp"
                 android:paddingBottom="12dp"
-                android:text="Beta. Tap a subject to give it your own name, emoji and color in the calendar. Changes sync right away."
+                android:text="Tap a subject to change its name, emoji or color."
                 android:textAppearance="?attr/textAppearanceBodyMedium" />
 
             <com.google.android.material.card.MaterialCardView

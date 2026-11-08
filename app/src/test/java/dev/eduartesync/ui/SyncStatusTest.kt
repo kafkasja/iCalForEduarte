@@ -125,4 +125,14 @@ class SyncStatusTest {
         assertTrue(SyncStatus.shouldSyncOnOpen(now - minute, "Not synced. No internet", now))
         assertTrue(SyncStatus.shouldSyncOnOpen(0, null, now))
     }
+
+    @Test
+    fun `a finished sync is only announced when asked for, failed or with changes`() {
+        val quiet = "Synced 14 lessons until 15/11: no changes"
+        assertFalse(SyncStatus.shouldAnnounce(quiet, userStarted = false))
+        assertTrue(SyncStatus.shouldAnnounce(quiet, userStarted = true))
+        assertTrue(SyncStatus.shouldAnnounce("Synced 14 lessons until 15/11: 1 moved", userStarted = false))
+        assertTrue(SyncStatus.shouldAnnounce("Not synced. No internet", userStarted = false))
+        assertTrue(SyncStatus.shouldAnnounce("Not synced: log in needed", userStarted = false))
+    }
 }

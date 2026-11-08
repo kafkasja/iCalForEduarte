@@ -19,12 +19,6 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="24dp">
 
-            <TextView
-                android:id="@+id/updated"
-                style="@style/Footnote"
-                android:paddingTop="4dp"
-                android:visibility="gone" />
-
             <LinearLayout
                 android:id="@+id/recentSection"
                 android:layout_width="match_parent"
@@ -34,7 +28,7 @@
 
                 <TextView
                     style="@style/SectionHeader"
-                    android:paddingTop="16dp"
+                    android:paddingTop="8dp"
                     android:text="Recent" />
 
                 <com.google.android.material.card.MaterialCardView style="@style/Card">

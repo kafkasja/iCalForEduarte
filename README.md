@@ -12,17 +12,17 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 
 ## Usage
 
-- Tapping the app icon opens the app and syncs right away (not again when the last sync worked less than 2 minutes ago). Coming back to the app after 15 minutes or more syncs too. The result shows at the bottom of the screen, for example "Synced 20 lessons until 18/10: 1 moved".
+- Tapping the app icon opens the app and syncs right away (not again when the last sync worked less than 2 minutes ago). Coming back to the app after 15 minutes or more syncs too. The result shows at the bottom of the screen, for example "Synced 20 lessons until 18/10: 1 moved", when the schedule changed or the sync failed; a sync you started yourself (pulling down, "Sync now") always shows it.
 - The app has three tabs:
-  - **Rooster:** your lessons, one day per page. Swipe between days, tap a day in the week strip, or use the arrows and "Today" to jump. Saturday and Sunday only show up when they have lessons. Each lesson shows its time, room and teacher; free time between lessons and the current time are marked, cancelled lessons are struck through. Tap a lesson for the details and "Open in calendar". The line at the top says whether the rooster is up to date (tap it for details); pull down to sync. Days after the synced range say so, the range can be changed in the settings.
+  - **Rooster:** your lessons, one day per page. The top bar shows the week and its lesson hours ("Week 46 · 13 h"; tap it to go back to today), arrows for the previous and next week, the sync status as an icon (a check when up to date, a clock when it may be out of date, red when it failed or you need to log in; tap it for details and "Sync now"), and the gear for the settings. Swipe between days or tap a day in the week strip. Saturday and Sunday only show up when they have lessons. Above the lessons a line says the day, how many lessons and from when to when, e.g. "Tomorrow · 3 lessons · 13:15 – 16:30". Each lesson shows its time, room and teacher; free time between lessons and the current time are marked, cancelled lessons are struck through. Tap a lesson for the details and "Open in calendar". Pull down to sync. Days after the synced range say so, the range can be changed in the settings.
   - **Cijfers:** your grades, the newest first and per subject with the average. Not available yet; this tab is ready for when the app can read grades from Eduarte.
   - **Meer:** your Eduarte pages in the app (below), Subjects, Settings, the login log, Eduarte in your browser, and the app version.
-- From the Meer tab you can open these Eduarte pages in the app. Each shows what it read last time right away (also offline), reads Eduarte again when that is more than an hour old, and pull down always reads again:
+- From the Meer tab you can open these Eduarte pages in the app. Each shows what it read last time right away (also offline; when it was read is under the title), reads Eduarte again when that is more than an hour old, and pull down always reads again:
   - **Presentie:** your attendance. A ring with the percentage you were present, the hours present and absent, and chips to choose the period (school year, this or last month, this or last week). Below that the excused (geoorloofd) and unexcused (ongeoorloofd) absence, every subject from the lowest percentage up (green from 90%, amber from 80%, red below), and the lessons of the last four weeks one by one. Reading per subject takes about a second per subject, so the totals show first and a line counts the subjects while they are read. The Meer tab shows the school year's percentage under "Presentie".
-  - **Studie:** your programmes (level, BOL/BBL, status, dates, location) and study points.
+  - **Studie:** your programmes (level, BOL/BBL, status, dates, location) and study points, once there are any.
   - **Vakken**, **Groepen** (tap a group to see who is in it), **Dossier** and **Documents**. Tapping a document downloads it with your Eduarte login and opens it in your PDF app.
-- The gear at the top opens the settings.
-- Syncs started from the widget's sync button or the Subjects page show the result as a short message, since there is no status line there.
+- The gear at the top opens the settings (on the Cijfers and Meer tabs too).
+- Syncs started from the widget's sync button or the Subjects page show the result as a short message, since there is no status icon there.
 - It also syncs in the background about every 12 hours.
 - By default each sync covers today until the end of next week. Days that have passed are left alone.
 - When the schedule changed, a notification lists what changed. Days that are new to the calendar don't count as changes. "Ignore" turns these notifications off; they can be turned back on from the settings.
@@ -86,7 +86,7 @@ Clearing the app's storage in Android settings resets everything, including the 
 | `sync/SyncScheduler.kt` | Background sync every 12 hours, and sync on opening the app |
 | `sync/Notifier.kt` | Notifications for changes and problems |
 | `ui/MainActivity.kt` | Main screen with the tabs; asks for permissions, sends you to the login, syncs on opening |
-| `ui/rooster/` | Rooster tab: day pages, week strip, lesson details, sync status line |
+| `ui/rooster/` | Rooster tab: day pages, week strip, lesson details, sync status icon |
 | `ui/grades/` | Cijfers tab |
 | `ui/more/MoreFragment.kt` | Meer tab |
 | `ui/SettingsActivity.kt` | Settings page |

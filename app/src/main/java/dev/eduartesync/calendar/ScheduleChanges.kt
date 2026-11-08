@@ -88,9 +88,12 @@ fun describeChanges(
     return changes
 }
 
+/** What [summarize] says when nothing changed. */
+const val NO_CHANGES = "no changes"
+
 /** "2 added, 1 moved" or "no changes". */
 fun summarize(changes: List<ScheduleChange>): String {
-    if (changes.isEmpty()) return "no changes"
+    if (changes.isEmpty()) return NO_CHANGES
     return ScheduleChange.Kind.entries
         .mapNotNull { kind ->
             val n = changes.count { it.kind == kind }

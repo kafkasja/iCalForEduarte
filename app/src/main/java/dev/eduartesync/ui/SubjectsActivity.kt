@@ -37,8 +37,7 @@ class SubjectsActivity : AppCompatActivity() {
         prepareScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_subjects)
-        applyScreenInsets(showBack = true)
-        title = "Subjects"
+        setUpScreen("Subjects")
         store = SubjectStore(this)
         list = findViewById(R.id.subjectList)
     }
@@ -59,8 +58,10 @@ class SubjectsActivity : AppCompatActivity() {
             val row = layoutInflater.inflate(R.layout.item_subject, list, false)
             showSwatch(row.findViewById(R.id.swatch), subject)
             row.findViewById<TextView>(R.id.title).text = displayTitle(subject)
-            row.findViewById<TextView>(R.id.original).text =
-                if (isCustomized(subject)) "Eduarte: ${subject.name}" else "Tap to customize"
+            row.findViewById<TextView>(R.id.original).apply {
+                text = "Eduarte: ${subject.name}"
+                visibility = if (isCustomized(subject)) View.VISIBLE else View.GONE
+            }
             row.setOnClickListener { edit(subject) }
             list.addView(row)
         }

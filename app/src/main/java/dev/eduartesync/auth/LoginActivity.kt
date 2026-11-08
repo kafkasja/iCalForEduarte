@@ -2,7 +2,9 @@ package dev.eduartesync.auth
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.res.Configuration
 import android.graphics.Bitmap
+import androidx.core.view.WindowCompat
 import android.os.Bundle
 import android.widget.CheckBox
 import android.widget.LinearLayout
@@ -68,6 +70,9 @@ class LoginActivity : Activity() {
             addView(rememberBox())
             addView(webView, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         })
+        // The Microsoft page is light: dark status bar icons, or the clock is unreadable.
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !night
         LoginLog.add(this, "login screen opened")
         webView.loadUrl(Config.PORTAL_URL)
     }

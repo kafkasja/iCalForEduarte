@@ -59,7 +59,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         } catch (e: SessionExpiredException) {
             Notifier.clearApproveSignIn(context)
             Notifier.loginRequired(context, e.reason)
-            report("Not synced: ${Notifier.loginRequiredText(context, e.reason)}")
+            // "Log in needed" is what the settings page looks for, see SyncStatus.isLoginExpired.
+            report("Not synced: log in needed. ${Notifier.loginRequiredText(context, e.reason)}")
             return Result.success()
         } catch (e: Throwable) {
             Notifier.clearApproveSignIn(context)

@@ -66,7 +66,8 @@ object SyncStatus {
 
     fun isLoginExpired(result: String): Boolean {
         val text = result.lowercase()
-        return text.startsWith("not synced") && "login" in text && "expired" in text
+        return text.startsWith("not synced") &&
+            (("login" in text && "expired" in text) || text.startsWith("not synced: log in needed"))
     }
 
     /** "just now", "12 min ago", "3 hours ago", "yesterday", "4 days ago". */

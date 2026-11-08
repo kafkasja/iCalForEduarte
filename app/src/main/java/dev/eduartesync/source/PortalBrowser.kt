@@ -16,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -52,14 +53,17 @@ class PortalBrowser(context: Context) {
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
     }
 
-    /** Opens [url] and returns the final URL and HTML once an agenda page has loaded. */
-    suspend fun open(url: String): Pair<String, String> {
+    /**
+     * Opens [url] and returns the final URL and HTML once a portal page whose path starts with
+     * [targetPath] has loaded (by default the agenda).
+     */
+    suspend fun open(url: String, targetPath: String = AGENDA_PATH): Pair<String, String> {
         val landed = CompletableDeferred<String>()
         var reopened = false
         var renewing = false
         onPageFinished = { loaded ->
             when {
-                isAgendaPage(loaded) -> landed.complete(loaded)
+                isTargetPage(loaded, targetPath) -> landed.complete(loaded)
                 // Session renewal stopped at "Stay signed in?" or "Pick an account": click through.
                 MicrosoftLogin.isMicrosoftPage(loaded) -> {
                     if (!renewing) {
@@ -70,7 +74,7 @@ class PortalBrowser(context: Context) {
                     LoginLog.page(appContext, loaded)
                     webView.evaluateJavascript(MicrosoftLogin.script(pickAccount = true), null)
                 }
-                // Came back from a session renewal on the home page: open the agenda again.
+                // Came back from a session renewal on the home page: open the target page again.
                 SessionManager.isPortalPage(loaded) && !reopened -> {
                     reopened = true
                     webView.loadUrl(url)
@@ -88,7 +92,7 @@ class PortalBrowser(context: Context) {
                 LoginLog.page(appContext, webView.url)
                 throw SessionExpiredException()
             }
-            throw IOException("Eduarte did not load the agenda in time")
+            throw IOException("Eduarte did not load $targetPath in time")
         }
         CookieManager.getInstance().flush()
         if (renewing) LoginLog.add(appContext, "sync: session renewed without the user")
@@ -111,6 +115,51 @@ class PortalBrowser(context: Context) {
         if (!switched) throw IOException("Eduarte did not switch to the week of $date")
         delay(SETTLE_MS) // the new week's lesson positions arrive just after the lessons
         return webView.url.orEmpty() to evaluate(PAGE_HTML)
+    }
+
+    /** The current URL and HTML of the page, as it is now (including background updates). */
+    suspend fun currentPage(): Pair<String, String> = webView.url.orEmpty() to evaluate(PAGE_HTML)
+
+    /** Runs [script] in the page and returns its result as a string ("" for null). */
+    suspend fun run(script: String): String = evaluate(script)
+
+    /**
+     * Polls the JavaScript expression [condition] until it is truthy. Returns false if that
+     * didn't happen within [timeoutMs]. For parts that the portal loads in the background.
+     */
+    suspend fun waitFor(condition: String, timeoutMs: Long = TIMEOUT_MS): Boolean =
+        withTimeoutOrNull(timeoutMs) {
+            while (evaluate("!!($condition)") != "true") delay(POLL_MS)
+            true
+        } ?: false
+
+    /**
+     * Runs [body] as the body of an async JavaScript function (it may use `await` and must
+     * `return` a JSON-serializable value) and returns that value JSON encoded.
+     *
+     * evaluateJavascript can't wait for promises, so the script stores its outcome in a window
+     * variable that is polled until it shows up. Throws [IOException] when the script didn't
+     * finish within [timeoutMs] (for example because the page navigated away), and
+     * [AgendaFormatException] when it threw.
+     */
+    suspend fun runAsync(body: String, timeoutMs: Long): String {
+        val key = "__eduarteSync" + System.nanoTime()
+        evaluate(asyncWrapper(key, body))
+        val poll = "(function(){var r=window['$key'];if(r===undefined)return null;" +
+            "delete window['$key'];return JSON.stringify(r);})()"
+        val raw = withTimeoutOrNull(timeoutMs) {
+            var result = ""
+            while (result.isEmpty()) {
+                delay(POLL_MS)
+                result = evaluate(poll)
+            }
+            result
+        } ?: throw IOException("Eduarte page script did not finish in time")
+        val outcome = JSONObject(raw)
+        if (!outcome.optBoolean("ok")) {
+            throw AgendaFormatException("page script failed: ${outcome.optString("error")}")
+        }
+        return outcome.optString("value", "null")
     }
 
     fun destroy() {
@@ -138,16 +187,31 @@ class PortalBrowser(context: Context) {
         })()
     """.trimIndent()
 
-    private fun isAgendaPage(url: String) =
-        SessionManager.isPortalPage(url) && (Uri.parse(url).path ?: "").startsWith("/agenda")
+    private fun asyncWrapper(key: String, body: String) = """
+(function () {
+  window['$key'] = undefined;
+  Promise.resolve().then(async function () {
+$body
+  }).then(function (v) {
+    window['$key'] = { ok: true, value: JSON.stringify(v === undefined ? null : v) };
+  }, function (e) {
+    window['$key'] = { ok: false, error: String((e && e.message) || e) };
+  });
+  return 'started';
+})()
+"""
 
-    private companion object {
-        const val TIMEOUT_MS = 45_000L
-        const val POLL_MS = 250L
-        const val SETTLE_MS = 750L
-        const val PAGE_HTML = "document.documentElement.outerHTML"
-        const val FIRST_DAY_HEADER = "(document.querySelector('div.agenda--day h4') || {}).textContent"
-        val DATE_FIELD_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
+    private fun isTargetPage(url: String, targetPath: String) =
+        SessionManager.isPortalPage(url) && (Uri.parse(url).path ?: "").startsWith(targetPath)
+
+    companion object {
+        const val AGENDA_PATH = "/agenda"
+        private const val TIMEOUT_MS = 45_000L
+        private const val POLL_MS = 250L
+        private const val SETTLE_MS = 750L
+        private const val PAGE_HTML = "document.documentElement.outerHTML"
+        private const val FIRST_DAY_HEADER = "(document.querySelector('div.agenda--day h4') || {}).textContent"
+        private val DATE_FIELD_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy")
     }
 }
 

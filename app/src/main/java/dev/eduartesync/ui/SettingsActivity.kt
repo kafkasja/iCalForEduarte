@@ -1,5 +1,8 @@
 package dev.eduartesync.ui
 
+import androidx.lifecycle.lifecycleScope
+import dev.eduartesync.sync.SyncWorker
+import kotlinx.coroutines.launch
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
@@ -97,10 +100,13 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.clearCalendar).setOnClickListener {
             confirm("Clear calendar?", "Removes all lessons this app added to your calendar. Your other calendars are not touched.") {
-                val removed = CalendarWriter(this).deleteCalendar() > 0
-                settings.syncedUntil = null
-                dev.eduartesync.widget.LessonWidget.refresh(this)
-                toast(if (removed) "Calendar cleared. Tap Sync now to get it back." else "There was nothing to clear.")
+                // Waits for a sync that is still writing, so the two never run at the same time.
+                toast("Clearing calendar...")
+                lifecycleScope.launch {
+                    val removed = SyncWorker.clearCalendar(this@SettingsActivity)
+                    dev.eduartesync.widget.LessonWidget.refresh(this@SettingsActivity)
+                    toast(if (removed) "Calendar cleared. Tap Sync now to get it back." else "There was nothing to clear.")
+                }
             }
         }
 

@@ -14,8 +14,8 @@ import dev.eduartesync.settings.AppSettings
 import java.util.concurrent.TimeUnit
 
 object SyncScheduler {
-    private const val PERIODIC_WORK = "periodic-sync"
-    private const val MANUAL_WORK = "manual-sync"
+    const val PERIODIC_WORK = "periodic-sync"
+    const val MANUAL_WORK = "manual-sync"
 
     private val needsNetwork = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)

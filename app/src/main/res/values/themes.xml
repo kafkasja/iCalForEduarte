@@ -1,34 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Settings and Subjects screens. values-night/ has the dark version. -->
-    <style name="Theme.EduarteSync.Screen" parent="android:Theme.Material.Light.DarkActionBar">
-        <item name="android:colorPrimary">@color/ic_launcher_background</item>
-        <item name="android:colorPrimaryDark">@color/primary_dark</item>
-        <item name="android:colorAccent">@color/ic_launcher_background</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        Settings and Subjects screens: Material 3, with the wallpaper colors (dynamic color) on
+        Android 12+, see DynamicColors in the activities. values-night/ has the dark version.
+        The launcher MainActivity keeps its own translucent platform theme (AndroidManifest.xml).
+    -->
+    <style name="Base.Theme.EduarteSync" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/seed_primary</item>
+        <item name="colorOnPrimary">@color/seed_on_primary</item>
+        <item name="colorPrimaryContainer">@color/seed_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/seed_on_primary_container</item>
+        <item name="colorSecondaryContainer">@color/seed_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/seed_on_secondary_container</item>
+        <item name="screenColor">?attr/colorSurfaceContainer</item>
+        <item name="cardColor">?attr/colorSurfaceContainerLowest</item>
+        <item name="android:windowBackground">?attr/screenColor</item>
     </style>
+
+    <style name="Theme.EduarteSync.Screen" parent="Base.Theme.EduarteSync" />
+
+    <!-- Page parts, used by both screens -->
 
     <style name="SectionHeader">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
         <item name="android:paddingTop">24dp</item>
         <item name="android:paddingBottom">8dp</item>
-        <item name="android:textColor">?android:attr/colorAccent</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:textStyle">bold</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelLarge</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:accessibilityHeading" tools:targetApi="28">true</item>
     </style>
 
-    <style name="Hint">
+    <style name="Card" parent="Widget.Material3.CardView.Filled">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:paddingBottom">8dp</item>
-        <item name="android:textColor">?android:attr/textColorSecondary</item>
-        <item name="android:textSize">13sp</item>
+        <item name="cardBackgroundColor">?attr/cardColor</item>
+        <item name="cardCornerRadius">24dp</item>
     </style>
 
-    <style name="RowButton" parent="android:Widget.Material.Button.Borderless.Colored">
-        <item name="android:layout_width">wrap_content</item>
+    <!-- A tappable line in a card: title with a value or explanation underneath. -->
+    <style name="Row">
+        <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:paddingStart">0dp</item>
+        <item name="android:minHeight">64dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="RowText">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="RowTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <!-- The current choice under a row title, e.g. "Through next week". -->
+    <style name="RowValue">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="RowSummary">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyMedium</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="RowChevron">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="android:src">@drawable/ic_chevron_right</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="tint">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <style name="RowDivider">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="dividerInsetStart">20dp</item>
+        <item name="dividerInsetEnd">20dp</item>
+        <item name="dividerColor">?attr/colorOutlineVariant</item>
+    </style>
+
+    <!-- Clear calendar / Log out: red text at the bottom of their card. -->
+    <style name="DangerRow" parent="Widget.Material3.Button.TextButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">56dp</item>
         <item name="android:gravity">start|center_vertical</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">?attr/colorError</item>
+        <item name="rippleColor">@color/danger_ripple</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.None</item>
+    </style>
+
+    <!-- Small print under a card. -->
+    <style name="Footnote">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingStart">20dp</item>
+        <item name="android:paddingEnd">20dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodySmall</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Large title that shrinks into the top bar when scrolling, like Samsung's own apps. -->
+    <style name="ScreenAppBar">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">?attr/screenColor</item>
+        <item name="liftOnScroll">false</item>
     </style>
 </resources>

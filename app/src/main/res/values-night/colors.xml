@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="seed_primary">#9ECAFF</color>
+    <color name="seed_on_primary">#003258</color>
+    <color name="seed_primary_container">#00497D</color>
+    <color name="seed_on_primary_container">#D1E4FF</color>
+    <color name="seed_secondary_container">#3B4858</color>
+    <color name="seed_on_secondary_container">#D7E3F7</color>
+
+    <color name="state_ok">#81C784</color>
+    <color name="state_warning">#FFD54F</color>
+    <color name="state_error">#EF9A9A</color>
+    <color name="state_idle">#9E9E9E</color>
+</resources>

@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.EduarteSync.Screen" parent="android:Theme.Material">
-        <item name="android:colorPrimary">@color/ic_launcher_background</item>
-        <item name="android:colorPrimaryDark">@color/primary_dark</item>
-        <item name="android:colorAccent">@color/accent_night</item>
+    <!-- Dark version of values/themes.xml: near-black page, slightly lighter cards (like One UI). -->
+    <style name="Base.Theme.EduarteSync" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/seed_primary</item>
+        <item name="colorOnPrimary">@color/seed_on_primary</item>
+        <item name="colorPrimaryContainer">@color/seed_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/seed_on_primary_container</item>
+        <item name="colorSecondaryContainer">@color/seed_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/seed_on_secondary_container</item>
+        <item name="screenColor">?attr/colorSurfaceContainerLowest</item>
+        <item name="cardColor">?attr/colorSurfaceContainer</item>
+        <item name="android:windowBackground">?attr/screenColor</item>
     </style>
 </resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Set per day/night in themes.xml: grey page with light cards by day, dark page with lighter cards at night. -->
+    <attr name="screenColor" format="color|reference" />
+    <attr name="cardColor" format="color|reference" />
+</resources>

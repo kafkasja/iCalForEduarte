@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug builds only: opens a portal page with the app's login and saves its HTML,
+             to find out which pages there are. Started with adb, see PortalExplorerActivity. -->
+        <activity
+            android:name=".debug.PortalExplorerActivity"
+            android:exported="true" />
+    </application>
+</manifest>

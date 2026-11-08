@@ -30,6 +30,9 @@ class LoginActivity : Activity() {
     private var fillLogin = false
     // The saved password is filled in once per login screen, so a wrong one isn't tried over and over.
     private var passwordFilled = false
+    // What was typed on this screen, kept in memory only, for when "Remember" is ticked afterwards.
+    private var typedEmail: String? = null
+    private var typedPassword: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +52,8 @@ class LoginActivity : Activity() {
                     if (MicrosoftLogin.isMicrosoftPage(url)) {
                         // Always "stay signed in", otherwise the login expires after a short while.
                         view.evaluateJavascript(MicrosoftLogin.script(pickAccount = fillLogin), null)
-                        if (fillLogin) view.evaluateJavascript(fillScript(), null)
+                        // Always listens to what is typed, so ticking "Remember" later still works.
+                        view.evaluateJavascript(fillScript(), null)
                     }
                 }
             }
@@ -62,7 +66,7 @@ class LoginActivity : Activity() {
                 }
             }
         }
-        if (fillLogin) webView.addJavascriptInterface(SavedLoginBridge(), MicrosoftLogin.BRIDGE)
+        webView.addJavascriptInterface(SavedLoginBridge(), MicrosoftLogin.BRIDGE)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -88,8 +92,11 @@ class LoginActivity : Activity() {
         setPadding(pad, pad, pad, pad)
         setOnCheckedChangeListener { _, on ->
             SavedLogin.setEnabled(this@LoginActivity, on)
-            // Takes effect on the next login page; reload so the page picks it up.
-            recreate()
+            // Ticked after typing: save what was typed on this screen so far.
+            if (on) {
+                typedEmail?.let { SavedLogin.saveEmail(this@LoginActivity, it) }
+                typedPassword?.let { SavedLogin.savePassword(this@LoginActivity, it) }
+            }
         }
     }
 
@@ -101,10 +108,16 @@ class LoginActivity : Activity() {
     /** Called from [MicrosoftLogin.fillScript]. */
     private inner class SavedLoginBridge {
         @JavascriptInterface
-        fun saveEmail(email: String) = onMicrosoftPage { SavedLogin.saveEmail(this@LoginActivity, email) }
+        fun saveEmail(email: String) = onMicrosoftPage {
+            typedEmail = email
+            SavedLogin.saveEmail(this@LoginActivity, email) // ignored while "Remember" is off
+        }
 
         @JavascriptInterface
-        fun savePassword(password: String) = onMicrosoftPage { SavedLogin.savePassword(this@LoginActivity, password) }
+        fun savePassword(password: String) = onMicrosoftPage {
+            typedPassword = password
+            SavedLogin.savePassword(this@LoginActivity, password)
+        }
 
         @JavascriptInterface
         fun passwordFilled() = onMicrosoftPage { passwordFilled = true }

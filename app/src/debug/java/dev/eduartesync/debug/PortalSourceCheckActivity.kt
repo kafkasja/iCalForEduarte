@@ -10,6 +10,8 @@ import dev.eduartesync.portal.PresencePeriod
 import dev.eduartesync.portal.PresenceSource
 import dev.eduartesync.portal.StudyRecordsSource
 import dev.eduartesync.portal.StudySource
+import dev.eduartesync.portal.openPage
+import dev.eduartesync.portal.withPortalBrowser
 import dev.eduartesync.presence.absenceNumbers
 import dev.eduartesync.presence.presenceNumbers
 import kotlinx.coroutines.MainScope
@@ -56,6 +58,15 @@ class PortalSourceCheckActivity : Activity() {
                             log("per subject read=${r.read}/${r.total} withLessons=${r.subjects.size} in ${System.currentTimeMillis() - loopStarted} ms")
                             r.subjects.forEach { log("subject value=${it.option.value} ${presenceNumbers(it.charts)}") }
                         }
+                    }
+                    // Saves a page exactly as the readers see it: --es source dump --es path studie/dossier
+                    "dump" -> withPortalBrowser(this@PortalSourceCheckActivity) { browser ->
+                        val path = intent.getStringExtra("path") ?: "studie/dossier"
+                        browser.openPage(path)
+                        kotlinx.coroutines.delay(3000)
+                        val (url, html) = browser.currentPage()
+                        java.io.File(java.io.File(filesDir, "explore").apply { mkdirs() }, "dump.html").writeText("<!-- $url -->\n$html")
+                        log("dumped $url (${html.length} chars)")
                     }
                     "records" -> StudyRecordsSource(this@PortalSourceCheckActivity).let { r ->
                         log("dossier=${r.fetchDossier().size} documents=${r.fetchDocuments().size} subjects=${r.fetchSubjects().size} groups=${r.fetchGroups().map { it.size }}")

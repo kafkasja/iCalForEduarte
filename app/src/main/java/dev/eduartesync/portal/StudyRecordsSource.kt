@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import dev.eduartesync.Config
 import dev.eduartesync.source.PortalBrowser
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 
 /**
@@ -39,8 +40,7 @@ class StudyRecordsSource(private val context: Context) {
 
     private suspend fun documents(browser: PortalBrowser): List<PortalDocument> {
         browser.openPage(PortalPages.DOCUMENTS)
-        browser.waitForSelector("table thead th, $EMPTY")
-        val documents = browser.parseCurrent { StudyRecordsParser.parseDocuments(it, Config.PORTAL_URL + PortalPages.DOCUMENTS) }
+        val documents = parseWhenFilled(browser) { StudyRecordsParser.parseDocuments(it, Config.PORTAL_URL + PortalPages.DOCUMENTS) }
         Log.i(PortalPages.TAG, "Loaded ${documents.size} documents")
         return documents
     }
@@ -49,12 +49,29 @@ class StudyRecordsSource(private val context: Context) {
         withPortalBrowser(context) { browser ->
             browser.openPage(path)
             browser.waitForSelector(selector)
-            val items = browser.parseCurrent(parse)
+            val items = parseWhenFilled(browser, parse)
             Log.i(PortalPages.TAG, "Loaded ${items.size} items from $path")
             items
         }
 
+    /**
+     * The lists on these pages arrive a moment after the page itself (seen live: parsing right
+     * away found nothing on pages that do have entries). Parses until something is found, the
+     * portal says the list is empty, or [FILL_TIMEOUT_MS] passed; then the list really is empty.
+     */
+    private suspend fun <T> parseWhenFilled(browser: PortalBrowser, parse: (String) -> List<T>): List<T> {
+        val until = System.currentTimeMillis() + FILL_TIMEOUT_MS
+        while (true) {
+            val items = browser.parseCurrent(parse)
+            if (items.isNotEmpty() || System.currentTimeMillis() > until) return items
+            if (browser.run("!!document.querySelector('$EMPTY')") == "true") return items
+            delay(FILL_POLL_MS)
+        }
+    }
+
     private companion object {
+        const val FILL_TIMEOUT_MS = 10_000L
+        const val FILL_POLL_MS = 500L
         /** The portal's "Er zijn geen ..." block, so an empty page doesn't wait for the time limit. */
         const val EMPTY = StudyRecordsParser.EMPTY_PAGE
     }

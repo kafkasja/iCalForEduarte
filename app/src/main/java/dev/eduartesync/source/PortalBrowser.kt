@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.SystemClock
+import android.view.View
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -83,6 +84,15 @@ class PortalBrowser(
             }
         }
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+        // A WebView that is never on screen is 0x0 pixels. Some portal lists (dossier,
+        // documents) only draw the rows that fit on screen, so they came out empty: give it the
+        // size of the phone's screen, as if it were shown.
+        val screen = appContext.resources.displayMetrics
+        measure(
+            View.MeasureSpec.makeMeasureSpec(screen.widthPixels, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(screen.heightPixels, View.MeasureSpec.EXACTLY),
+        )
+        layout(0, 0, screen.widthPixels, screen.heightPixels)
     }
 
     /**

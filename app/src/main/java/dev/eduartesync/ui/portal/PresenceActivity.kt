@@ -1,5 +1,7 @@
 package dev.eduartesync.ui.portal
 
+import dev.eduartesync.portal.PerSubjectPresence
+import dev.eduartesync.ui.LoadingLine
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
@@ -61,6 +63,7 @@ class PresenceActivity : AppCompatActivity() {
     private val model: PresenceViewModel by viewModels()
     private lateinit var store: PresenceStore
     private lateinit var refresh: SwipeRefreshLayout
+    private lateinit var loadingLine: LoadingLine
     private lateinit var content: LinearLayout
 
     /** "Show all days" was tapped under the recent lessons. */
@@ -78,9 +81,7 @@ class PresenceActivity : AppCompatActivity() {
         allDays = savedInstanceState?.getBoolean(STATE_ALL_DAYS) ?: false
 
         refresh = findViewById(R.id.refresh)
-        refresh.setColorSchemeColors(MaterialColors.getColor(refresh, MaterialR.attr.colorPrimary))
-        refresh.setProgressBackgroundColorSchemeColor(MaterialColors.getColor(refresh, MaterialR.attr.colorSurfaceContainerHigh))
-        refresh.setOnRefreshListener { model.refreshAll() }
+        loadingLine = LoadingLine.attach(refresh) { model.refreshAll() }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -96,10 +97,28 @@ class PresenceActivity : AppCompatActivity() {
         outState.putBoolean(STATE_ALL_DAYS, allDays)
     }
 
+    private var renderedKey: PresenceViewModel.State? = null
+    private var progressView: TextView? = null
+
+    private fun progressText(running: PerSubjectPresence?): String {
+        val progress = if (running != null && running.total > 0) " ${running.read}/${running.total}" else ""
+        return "Reading per subject…$progress"
+    }
+
     private fun render(state: PresenceViewModel.State) {
         val stored = store.load(state.period)
         val overview = stored?.value
-        refresh.isRefreshing = state.loadingTotals
+        loadingLine.loading = state.loadingTotals || state.perSubject != null || state.loadingRecent
+
+        // While reading per subject, most updates only move the counter: change just that text.
+        // Rebuilding everything twice a second made the bars flicker empty.
+        val key = state.copy(perSubject = state.perSubject?.copy(read = 0))
+        if (key == renderedKey && progressView != null) {
+            progressView?.text = progressText(state.perSubject)
+            return
+        }
+        renderedKey = key
+        progressView = null
 
         findViewById<TextView>(R.id.updated).apply {
             text = stored?.let { "Updated ${SyncStatus.ago(it.fetchedAt, System.currentTimeMillis())}" }
@@ -212,8 +231,9 @@ class PresenceActivity : AppCompatActivity() {
             ?: running?.subjects?.map { SubjectPresence(it.label, presenceNumbers(it.charts)) }
 
         if (running != null) {
-            val progress = if (running.total > 0) " ${running.read}/${running.total}" else ""
-            content.addView(footnote(layoutInflater, content, "Reading per subject…$progress").apply { setPadding(paddingLeft, 0, paddingRight, dp(8)) })
+            val note = footnote(layoutInflater, content, progressText(running)).apply { setPadding(paddingLeft, 0, paddingRight, dp(8)) }
+            progressView = note as? TextView
+            content.addView(note)
         }
 
         if (!subjects.isNullOrEmpty()) {
@@ -293,6 +313,7 @@ class PresenceActivity : AppCompatActivity() {
                 text = if (allDays) "Show fewer days" else "Show all ${days.size} days"
                 setOnClickListener {
                     allDays = !allDays
+                    renderedKey = null // not a progress tick: draw everything again
                     render(model.state.value)
                 }
             })

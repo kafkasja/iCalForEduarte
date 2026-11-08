@@ -1,5 +1,6 @@
 package dev.eduartesync.ui.rooster
 
+import dev.eduartesync.ui.LoadingLine
 import android.content.SharedPreferences
 import android.database.ContentObserver
 import android.os.Bundle
@@ -43,6 +44,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
     private lateinit var settings: AppSettings
     private lateinit var pager: ViewPager2
     private lateinit var refresh: SwipeRefreshLayout
+    private lateinit var loadingLine: LoadingLine
     private lateinit var weekStrip: WeekStrip
     private lateinit var status: StatusLine
     private val pages = DayPagerAdapter(onLesson = { showLessonSheet(requireContext(), it) }, onEmptyAction = ::onEmptyAction)
@@ -110,9 +112,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         })
 
         refresh = view.findViewById(R.id.refresh)
-        refresh.setColorSchemeColors(MaterialColors.getColor(view, MaterialR.attr.colorPrimary))
-        refresh.setProgressBackgroundColorSchemeColor(MaterialColors.getColor(view, MaterialR.attr.colorSurfaceContainerHigh))
-        refresh.setOnRefreshListener { startSync() }
+        loadingLine = LoadingLine.attach(refresh) { startSync() }
         // The pager can't scroll up itself; ask the list of the day that is showing.
         refresh.setOnChildScrollUpCallback { _, _ -> currentDayList()?.canScrollVertically(-1) == true }
 
@@ -220,17 +220,17 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
         val context = requireContext()
         when {
             !SessionManager.isLoggedIn(context) -> {
-                refresh.isRefreshing = false
+                loadingLine.loading = false
                 main().openLogin()
             }
             !CalendarWriter.hasPermission(context) -> {
-                refresh.isRefreshing = false
+                loadingLine.loading = false
                 main().requestCalendarAccess()
             }
             else -> {
                 SyncScheduler.syncNow(context, quiet = true)
                 pulledAt = System.currentTimeMillis()
-                refresh.isRefreshing = true
+                loadingLine.loading = true
                 handler.postDelayed(updateSpinner, WAIT_SPINNER_MS)
             }
         }
@@ -250,7 +250,7 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
      */
     private fun showSpinner() {
         val justPulled = System.currentTimeMillis() - pulledAt < WAIT_SPINNER_MS
-        refresh.isRefreshing = work.running || (work.waiting && justPulled)
+        loadingLine.loading = work.running || (work.waiting && justPulled)
     }
 
     /** What the toast says for a sync started outside the app, as a snackbar above the tabs. */

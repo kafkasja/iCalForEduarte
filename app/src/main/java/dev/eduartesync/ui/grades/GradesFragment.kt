@@ -1,5 +1,6 @@
 package dev.eduartesync.ui.grades
 
+import dev.eduartesync.ui.LoadingLine
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -26,6 +27,7 @@ import com.google.android.material.R as MaterialR
 class GradesFragment : Fragment(R.layout.fragment_grades) {
     private lateinit var store: GradesStore
     private lateinit var refresh: SwipeRefreshLayout
+    private lateinit var loadingLine: LoadingLine
 
     /** Subjects whose card is open. */
     private val expanded = mutableSetOf<String>()
@@ -39,9 +41,7 @@ class GradesFragment : Fragment(R.layout.fragment_grades) {
         notAvailable = savedInstanceState?.getBoolean(STATE_NOT_AVAILABLE) ?: false
 
         refresh = view.findViewById(R.id.refresh)
-        refresh.setColorSchemeColors(MaterialColors.getColor(view, MaterialR.attr.colorPrimary))
-        refresh.setProgressBackgroundColorSchemeColor(MaterialColors.getColor(view, MaterialR.attr.colorSurfaceContainerHigh))
-        refresh.setOnRefreshListener { fetch(userAsked = true) }
+        loadingLine = LoadingLine.attach(refresh) { fetch(userAsked = true) }
 
         render()
         val stored = store.load()
@@ -57,7 +57,7 @@ class GradesFragment : Fragment(R.layout.fragment_grades) {
     }
 
     private fun fetch(userAsked: Boolean) {
-        refresh.isRefreshing = true
+        loadingLine.loading = true
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val grades = gradesFetcher(requireContext()).fetch()
@@ -75,7 +75,7 @@ class GradesFragment : Fragment(R.layout.fragment_grades) {
                         .show()
                 }
             } finally {
-                refresh.isRefreshing = false
+                loadingLine.loading = false
                 render()
             }
         }

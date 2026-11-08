@@ -1,5 +1,6 @@
 package dev.eduartesync.ui.portal
 
+import dev.eduartesync.ui.LoadingLine
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -48,6 +49,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
 
     protected lateinit var store: PortalStore
     private lateinit var refresh: SwipeRefreshLayout
+    private lateinit var loadingLine: LoadingLine
 
     /** The last read failed; shown in the empty state when there's nothing to show instead. */
     private var problem: PortalProblem? = null
@@ -62,9 +64,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
         store = PortalStore(this)
 
         refresh = findViewById(R.id.refresh)
-        refresh.setColorSchemeColors(MaterialColors.getColor(refresh, MaterialR.attr.colorPrimary))
-        refresh.setProgressBackgroundColorSchemeColor(MaterialColors.getColor(refresh, MaterialR.attr.colorSurfaceContainerHigh))
-        refresh.setOnRefreshListener { load(userAsked = true) }
+        loadingLine = LoadingLine.attach(refresh) { load(userAsked = true) }
 
         show()
         val stored = store.load(record)
@@ -74,7 +74,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
     }
 
     private fun load(userAsked: Boolean) {
-        refresh.isRefreshing = true
+        loadingLine.loading = true
         lifecycleScope.launch {
             try {
                 store.save(record, fetch(), System.currentTimeMillis())
@@ -87,7 +87,7 @@ abstract class PortalListActivity<T> : AppCompatActivity() {
                 // With something on screen, only say so when asked; a login problem always, for its button.
                 if (found.needsLogin || (userAsked && store.load(record) != null)) showProblem(found)
             } finally {
-                refresh.isRefreshing = false
+                loadingLine.loading = false
                 show()
             }
         }

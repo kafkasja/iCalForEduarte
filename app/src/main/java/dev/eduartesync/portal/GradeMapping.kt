@@ -1,20 +1,6 @@
 package dev.eduartesync.portal
 
-import java.time.LocalDate
-
-/**
- * Stand-in with the exact shape of `dev.eduartesync.grades.Grade`, which the UI defines.
- * After merging, replace this class with `import dev.eduartesync.grades.Grade`.
- */
-data class Grade(
-    val subject: String,
-    val description: String,
-    val value: String,
-    val numeric: Double?,
-    val weight: Double?,
-    val date: LocalDate?,
-    val period: String?,
-)
+import dev.eduartesync.grades.Grade
 
 /**
  * Maps the portal's grades to the UI's [Grade]. Averages from the matrix's last column are

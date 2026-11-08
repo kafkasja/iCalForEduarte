@@ -135,7 +135,7 @@ class LoginActivity : Activity() {
         LoginLog.microsoftCookies(this)
         SessionManager.setLoggedIn(this, true)
         SyncScheduler.updatePeriodic(this)
-        SyncScheduler.syncNow(this)
+        SyncScheduler.syncNow(this, quiet = true) // the app shows the result itself
         Toast.makeText(this, "Logged in, syncing your schedule...", Toast.LENGTH_SHORT).show()
         finish()
     }

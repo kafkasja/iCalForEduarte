@@ -1,5 +1,6 @@
 package dev.eduartesync.portal
 
+import dev.eduartesync.grades.Grade
 import dev.eduartesync.source.AgendaFormatException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

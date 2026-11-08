@@ -1,5 +1,8 @@
 package dev.eduartesync.grades
 
+import dev.eduartesync.portal.PortalGradesSource
+import dev.eduartesync.portal.toGrades
+
 import android.content.Context
 
 /** Reads the current grades from the portal. Throws when they couldn't be read. */
@@ -8,13 +11,12 @@ interface GradesFetcher {
 }
 
 /**
- * The fetcher the Cijfers tab uses. Swap in the real portal scraper here once it exists; until
- * then the tab shows "Not available yet".
+ * The fetcher the Cijfers tab uses: the portal's Resultaten page.
  */
-@Suppress("UNUSED_PARAMETER") // the real scraper will need the context for its WebView
-fun gradesFetcher(context: Context): GradesFetcher = NotAvailableGradesFetcher
+fun gradesFetcher(context: Context): GradesFetcher = PortalGradesFetcher(context.applicationContext)
 
-/** Placeholder until the grades page of the portal is scraped. */
-object NotAvailableGradesFetcher : GradesFetcher {
-    override suspend fun fetch(): List<Grade> = throw NotImplementedError("Reading grades from Eduarte isn't built yet")
+/** Reads the grades from the portal's Resultaten page, see [PortalGradesSource]. */
+class PortalGradesFetcher(private val context: Context) : GradesFetcher {
+    override suspend fun fetch(): List<Grade> = toGrades(PortalGradesSource(context).fetch().grades)
 }
+

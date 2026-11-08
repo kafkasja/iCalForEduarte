@@ -82,6 +82,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         Notifier.scheduleChanged(context, changes)
         Log.i(TAG, "Synced ${lessons.size} lessons: ${summarize(changes)}")
         report("Synced ${lessons.size} lessons until ${to.dayOfMonth}/${to.monthValue}: ${summarize(changes)}")
+        dev.eduartesync.widget.LessonWidget.refresh(context)
         return Result.success()
     }
 

@@ -2,4 +2,19 @@
 <resources>
     <string name="app_name">Eduarte Sync</string>
     <string name="login_title">Log in to Eduarte</string>
+
+    <!-- Lessons widget -->
+    <string name="widget_name">Lessons</string>
+    <string name="widget_description">Your next lessons from the Eduarte rooster calendar</string>
+    <string name="widget_title">Lessons</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_tomorrow">Tomorrow</string>
+    <string name="widget_now">Now</string>
+    <string name="widget_synced">Synced %1$s</string>
+    <string name="widget_not_synced">Not synced yet</string>
+    <string name="widget_sync_now">Sync now</string>
+    <string name="widget_syncing">Syncing schedule...</string>
+    <string name="widget_no_lessons">No lessons coming up</string>
+    <string name="widget_open_app">Open Eduarte Sync to set up your schedule</string>
+    <string name="widget_no_calendar_app">No calendar app found to open this lesson</string>
 </resources>

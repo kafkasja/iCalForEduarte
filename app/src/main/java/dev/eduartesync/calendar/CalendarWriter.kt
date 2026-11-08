@@ -72,15 +72,20 @@ class CalendarWriter(context: Context) {
         arrayOf(Config.ACCOUNT_NAME, CalendarContract.ACCOUNT_TYPE_LOCAL),
     )
 
-    /** Looked up by account each time (not stored), so "Clear storage" never duplicates it. */
+    /**
+     * The app's calendar, or null when it doesn't exist (yet). Looked up by account each time
+     * (not stored), so "Clear storage" never duplicates it.
+     */
+    fun findCalendarId(): Long? = resolver.query(
+        Calendars.CONTENT_URI,
+        arrayOf(Calendars._ID),
+        "${Calendars.ACCOUNT_NAME} = ? AND ${Calendars.ACCOUNT_TYPE} = ?",
+        arrayOf(Config.ACCOUNT_NAME, CalendarContract.ACCOUNT_TYPE_LOCAL),
+        null,
+    )?.use { if (it.moveToFirst()) it.getLong(0) else null }
+
     private fun findOrCreateCalendar(): Long {
-        resolver.query(
-            Calendars.CONTENT_URI,
-            arrayOf(Calendars._ID),
-            "${Calendars.ACCOUNT_NAME} = ? AND ${Calendars.ACCOUNT_TYPE} = ?",
-            arrayOf(Config.ACCOUNT_NAME, CalendarContract.ACCOUNT_TYPE_LOCAL),
-            null,
-        )?.use { if (it.moveToFirst()) return it.getLong(0) }
+        findCalendarId()?.let { return it }
 
         val values = ContentValues().apply {
             put(Calendars.ACCOUNT_NAME, Config.ACCOUNT_NAME)

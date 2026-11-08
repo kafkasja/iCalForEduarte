@@ -107,4 +107,22 @@ class SyncStatusTest {
         assertEquals("Next automatic sync on Tue around 08:10", SyncStatus.nextSync(at(10, 8, 10), now, zone))
         assertEquals("Next automatic sync soon", SyncStatus.nextSync(now - minute, now, zone))
     }
+
+    @Test
+    fun `compact line for the Rooster tab`() {
+        val at = now - 3 * minute
+        assertEquals("Up to date · 3 min ago", SyncStatus.compact(summarize(at = at), at, now))
+        assertEquals("Last sync failed · 3 min ago", SyncStatus.compact(summarize(at = at, result = "Not synced. No internet"), at, now))
+        assertEquals("Log in needed", SyncStatus.compact(summarize(loggedIn = false), at, now))
+        assertEquals("Syncing…", SyncStatus.compact(summarize(running = true), at, now))
+    }
+
+    @Test
+    fun `opening the app skips the sync only right after a successful one`() {
+        val ok = "Synced 20 lessons until 15/11: no changes"
+        assertFalse(SyncStatus.shouldSyncOnOpen(now - minute, ok, now))
+        assertTrue(SyncStatus.shouldSyncOnOpen(now - 3 * minute, ok, now))
+        assertTrue(SyncStatus.shouldSyncOnOpen(now - minute, "Not synced. No internet", now))
+        assertTrue(SyncStatus.shouldSyncOnOpen(0, null, now))
+    }
 }

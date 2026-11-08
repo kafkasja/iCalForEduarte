@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The tabs of the main screen. Labels are the Dutch school words the user knows from Eduarte. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/tab_rooster"
+        android:icon="@drawable/ic_calendar"
+        android:title="@string/tab_rooster" />
+    <item
+        android:id="@+id/tab_cijfers"
+        android:icon="@drawable/ic_school"
+        android:title="@string/tab_cijfers" />
+    <item
+        android:id="@+id/tab_meer"
+        android:icon="@drawable/ic_more"
+        android:title="@string/tab_meer" />
+</menu>

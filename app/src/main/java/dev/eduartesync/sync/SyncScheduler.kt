@@ -42,13 +42,16 @@ object SyncScheduler {
         WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_WORK)
     }
 
-    /** Sync now (app icon tapped). KEEP: tapping twice doesn't start two syncs. */
-    fun syncNow(context: Context) {
+    /**
+     * Sync now (app opened, pulled to refresh, widget button). KEEP: asking twice doesn't start
+     * two syncs. [quiet]: the app is open and shows the result itself, so no toast.
+     */
+    fun syncNow(context: Context, quiet: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(needsNetwork)
             // Start right away, also when Android is saving battery for background apps.
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .setInputData(workDataOf(SyncWorker.KEY_MANUAL to true))
+            .setInputData(workDataOf(SyncWorker.KEY_MANUAL to true, SyncWorker.KEY_QUIET to quiet))
             .build()
         WorkManager.getInstance(context)
             .enqueueUniqueWork(MANUAL_WORK, ExistingWorkPolicy.KEEP, request)

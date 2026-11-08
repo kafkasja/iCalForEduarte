@@ -14,12 +14,13 @@
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
-        <!-- Tapping the app icon = sync now. No UI; it finishes right away. -->
+        <!-- Main screen (Rooster, Cijfers, Meer); opening it also syncs. singleTop: a notification
+             or the widget reuses the screen that's already showing instead of stacking a second one. -->
         <activity
             android:name=".ui.MainActivity"
-            android:excludeFromRecents="true"
             android:exported="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.EduarteSync.Screen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -31,17 +32,14 @@
             android:exported="false"
             android:label="@string/login_title" />
 
-        <!-- Opened by tapping the app icon twice quickly -->
         <activity
             android:name=".ui.SettingsActivity"
             android:exported="false"
-            android:taskAffinity="dev.eduartesync.settings"
             android:theme="@style/Theme.EduarteSync.Screen" />
 
         <activity
             android:name=".ui.SubjectsActivity"
             android:exported="false"
-            android:parentActivityName=".ui.SettingsActivity"
             android:theme="@style/Theme.EduarteSync.Screen" />
 
         <!-- "Ignore" button on the schedule changes notification -->

@@ -2,6 +2,7 @@ package dev.eduartesync.ui
 
 import android.view.View
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.ColorRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -10,13 +11,22 @@ import com.google.android.material.color.DynamicColors
 import dev.eduartesync.R
 
 /**
- * Shared setup for the Settings and Subjects screens. Call before super.onCreate():
+ * Shared setup for the app's screens. Call before super.onCreate():
  * wallpaper colors on Android 12+ and drawing behind the system bars, which Android 15+ does
  * anyway for apps targeting it.
  */
 fun AppCompatActivity.prepareScreen() {
     DynamicColors.applyToActivityIfAvailable(this)
     enableEdgeToEdge()
+}
+
+/** Color of the status dot, on the settings page and the Rooster tab. */
+@ColorRes
+fun stateColor(state: SyncState): Int = when (state) {
+    SyncState.OK -> R.color.state_ok
+    SyncState.STALE, SyncState.WAITING -> R.color.state_warning
+    SyncState.FAILED, SyncState.LOGIN_NEEDED -> R.color.state_error
+    SyncState.NEVER, SyncState.SYNCING -> R.color.state_idle
 }
 
 /**

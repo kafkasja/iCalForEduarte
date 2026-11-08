@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!--
-        Settings and Subjects screens: Material 3, with the wallpaper colors (dynamic color) on
-        Android 12+, see DynamicColors in the activities. values-night/ has the dark version.
-        The launcher MainActivity keeps its own translucent platform theme (AndroidManifest.xml).
+        Main, Settings and Subjects screens: Material 3, with the wallpaper colors (dynamic color)
+        on Android 12+, see prepareScreen() in Screens.kt. values-night/ has the dark version.
     -->
     <style name="Base.Theme.EduarteSync" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/seed_primary</item>
@@ -128,6 +127,69 @@
         <item name="android:paddingTop">8dp</item>
         <item name="android:textAppearance">?attr/textAppearanceBodySmall</item>
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
+    <!-- Main screen tabs -->
+
+    <!-- Sync status line at the top of the Rooster tab. -->
+    <style name="StatusCard" parent="Widget.Material3.CardView.Outlined">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginHorizontal">16dp</item>
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="cardBackgroundColor">?attr/cardColor</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="strokeColor">?attr/colorOutlineVariant</item>
+    </style>
+
+    <!-- A lesson on the Rooster tab; outlined in the primary color while it is going on. -->
+    <style name="LessonCard" parent="Widget.Material3.CardView.Filled">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="cardBackgroundColor">?attr/cardColor</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="strokeColor">?attr/colorPrimary</item>
+    </style>
+
+    <!-- "Now", "Cancelled", or a grade value in a rounded label. -->
+    <style name="Badge">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/badge_background</item>
+        <item name="android:paddingStart">8dp</item>
+        <item name="android:paddingEnd">8dp</item>
+        <item name="android:paddingTop">2dp</item>
+        <item name="android:paddingBottom">2dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelMedium</item>
+        <item name="android:visibility">gone</item>
+    </style>
+
+    <!-- A grade or average on the Cijfers tab; colored in code (red below 5,5). -->
+    <style name="GradeValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:minWidth">48dp</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:background">@drawable/badge_background</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+    </style>
+
+    <!-- A detail line with an icon in the lesson sheet. -->
+    <style name="SheetLine">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:drawablePadding">16dp</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textIsSelectable">true</item>
+        <item name="drawableTint">?attr/colorOnSurfaceVariant</item>
     </style>
 
     <!-- Large title that shrinks into the top bar when scrolling, like Samsung's own apps. -->

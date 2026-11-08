@@ -3,6 +3,11 @@
     <string name="app_name">Eduarte Sync</string>
     <string name="login_title">Log in to Eduarte</string>
 
+    <!-- Main screen tabs: Dutch school words, as in Eduarte itself -->
+    <string name="tab_rooster">Rooster</string>
+    <string name="tab_cijfers">Cijfers</string>
+    <string name="tab_meer">Meer</string>
+
     <!-- Lessons widget -->
     <string name="widget_name">Lessons</string>
     <string name="widget_description">Your next lessons from the Eduarte rooster calendar</string>

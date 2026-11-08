@@ -19,10 +19,13 @@ data class StatusSummary(
     val action: StatusAction,
 )
 
-/** Turns the saved sync status into the plain-language lines at the top of the settings page. */
+/** Turns the saved sync status into the plain-language lines on the settings page and the Rooster tab. */
 object SyncStatus {
     /** After this long without a successful sync, the calendar may be out of date. */
     private const val STALE_AFTER_MS = 36 * 60 * 60 * 1000L
+
+    /** Opening the app doesn't sync again when the last sync succeeded this recently. */
+    private const val FRESH_MS = 2 * 60 * 1000L
 
     private val dayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH)
     private val shortDayFormat = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
@@ -63,6 +66,19 @@ object SyncStatus {
                 StatusSummary(SyncState.OK, "Up to date", "Synced ${ago(lastSyncAt, now)}.", StatusAction.SYNC)
         }
     }
+
+    /** One line for the top of the Rooster tab, e.g. "Up to date · 3 min ago". */
+    fun compact(summary: StatusSummary, lastSyncAt: Long, now: Long): String = when (summary.state) {
+        SyncState.OK -> "Up to date · ${ago(lastSyncAt, now)}"
+        SyncState.STALE -> "Might be out of date · ${ago(lastSyncAt, now)}"
+        SyncState.FAILED -> "Last sync failed · ${ago(lastSyncAt, now)}"
+        SyncState.LOGIN_NEEDED -> "Log in needed"
+        SyncState.NEVER, SyncState.SYNCING, SyncState.WAITING -> summary.headline
+    }
+
+    /** Opening the app syncs, unless the last sync succeeded moments ago (e.g. reopened right away). */
+    fun shouldSyncOnOpen(lastSyncAt: Long, lastResult: String?, now: Long): Boolean =
+        !(lastResult.orEmpty().startsWith("Synced") && now - lastSyncAt in 0 until FRESH_MS)
 
     fun isLoginExpired(result: String): Boolean {
         val text = result.lowercase()

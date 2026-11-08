@@ -12,8 +12,13 @@ Lessons go into a separate calendar called "Eduarte rooster", with the subject a
 
 ## Usage
 
-- Tapping the app icon syncs right away. A short message shows the result, for example "Synced 20 lessons until 18/10: 1 moved".
-- Tapping it twice quickly opens the settings.
+- Tapping the app icon opens the app and syncs right away (not again when the last sync worked less than 2 minutes ago). Coming back to the app after 15 minutes or more syncs too. The result shows at the bottom of the screen, for example "Synced 20 lessons until 18/10: 1 moved".
+- The app has three tabs:
+  - **Rooster:** your lessons, one day per page. Swipe between days, tap a day in the week strip, or use the arrows and "Today" to jump. Saturday and Sunday only show up when they have lessons. Each lesson shows its time, room and teacher; free time between lessons and the current time are marked, cancelled lessons are struck through. Tap a lesson for the details and "Open in calendar". The line at the top says whether the rooster is up to date (tap it for details); pull down to sync. Days after the synced range say so, the range can be changed in the settings.
+  - **Cijfers:** your grades, the newest first and per subject with the average. Not available yet; this tab is ready for when the app can read grades from Eduarte.
+  - **Meer:** Subjects, Settings, the login log, Eduarte in your browser, and the app version.
+- The gear at the top opens the settings.
+- Syncs started from the widget's sync button or the Subjects page show the result as a short message, since there is no status line there.
 - It also syncs in the background about every 12 hours.
 - By default each sync covers today until the end of next week. Days that have passed are left alone.
 - When the schedule changed, a notification lists what changed. Days that are new to the calendar don't count as changes. "Ignore" turns these notifications off; they can be turned back on from the settings.
@@ -31,7 +36,7 @@ The settings below it are grouped:
   - **Subjects (beta):** every subject that showed up in your schedule stays in this list until you remove it. Give each one its own name, emoji and color, e.g. "PDO-Expert" becomes "💻 PDO".
   - **Clear calendar:** removes the "Eduarte rooster" calendar and everything in it. The next sync brings it back.
 - **Background sync & notifications**
-  - **Sync automatically:** turn the sync every 12 hours off (tapping the icon still syncs).
+  - **Sync automatically:** turn the sync every 12 hours off (opening the app still syncs).
   - **Schedule change notifications:** shows whether they are on, and opens Android's settings for them.
 - **Account**
   - **Fill in my email and password:** off by default. When on, the email and password you type at the next login are saved, and every login after that fills them in, so only the Authenticator is left. Turning it off deletes them.
@@ -76,10 +81,15 @@ Clearing the app's storage in Android settings resets everything, including the 
 | `sync/SyncWorker.kt` | One sync, start to finish |
 | `sync/SyncScheduler.kt` | Background sync every 12 hours, and sync on opening the app |
 | `sync/Notifier.kt` | Notifications for changes and problems |
-| `ui/MainActivity.kt` | What happens when you tap the app icon (once: sync, twice: settings) |
+| `ui/MainActivity.kt` | Main screen with the tabs; asks for permissions, sends you to the login, syncs on opening |
+| `ui/rooster/` | Rooster tab: day pages, week strip, lesson details, sync status line |
+| `ui/grades/` | Cijfers tab |
+| `ui/more/MoreFragment.kt` | Meer tab |
 | `ui/SettingsActivity.kt` | Settings page |
 | `ui/SubjectsActivity.kt` | Subjects page (beta) |
-| `ui/SyncStatus.kt` | The plain-language status at the top of the settings page |
+| `ui/SyncStatus.kt` | The plain-language sync status on the settings page and the Rooster tab |
+| `calendar/CalendarReader.kt` | Reads the lessons back from the calendar for the app and the widget |
+| `grades/` | Grades: the data, the stored copy, averages, and the (not yet built) fetcher |
 | `settings/AppSettings.kt` | Stored settings and the sync range options |
 | `subjects/SubjectStore.kt` | The subject list with names, emoji and colors |
 | `update/UpdateChecker.kt` | Reads the releases from GitHub for the version section |

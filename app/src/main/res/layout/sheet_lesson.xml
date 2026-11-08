@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Details of a tapped lesson, in a bottom sheet. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingBottom="24dp">
+
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:id="@+id/colorDot"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/state_dot" />
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:accessibilityHeading="true"
+            tools:targetApi="28"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:textColor="?attr/colorOnSurface" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/cancelled"
+        style="@style/Badge"
+        android:layout_marginStart="28dp"
+        android:layout_marginTop="8dp"
+        android:text="Cancelled" />
+
+    <TextView
+        android:id="@+id/time"
+        style="@style/SheetLine"
+        android:layout_marginTop="16dp"
+        app:drawableStartCompat="@drawable/ic_schedule" />
+
+    <TextView
+        android:id="@+id/room"
+        style="@style/SheetLine"
+        app:drawableStartCompat="@drawable/ic_place" />
+
+    <TextView
+        android:id="@+id/teacher"
+        style="@style/SheetLine"
+        app:drawableStartCompat="@drawable/ic_person" />
+
+    <TextView
+        android:id="@+id/group"
+        style="@style/SheetLine"
+        app:drawableStartCompat="@drawable/ic_group" />
+
+    <Button
+        android:id="@+id/openInCalendar"
+        style="@style/Widget.Material3.Button.TonalButton.Icon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="Open in calendar"
+        app:icon="@drawable/ic_open_in_new" />
+</LinearLayout>

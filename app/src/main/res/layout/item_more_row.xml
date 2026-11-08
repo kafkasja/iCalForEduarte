@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One entry on the Meer tab: icon, title, summary, and a chevron (or an "opens outside" icon). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Row">
+
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="20dp"
+        android:importantForAccessibility="no"
+        app:tint="?attr/colorOnSurfaceVariant" />
+
+    <LinearLayout style="@style/RowText">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/RowTitle" />
+
+        <TextView
+            android:id="@+id/summary"
+            style="@style/RowSummary" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/trailing"
+        style="@style/RowChevron" />
+</LinearLayout>

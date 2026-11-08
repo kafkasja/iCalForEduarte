@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A line in a card on the portal screens: title, details underneath, an optional value label on
+     the right (a percentage, hours, a status) and an optional trailing icon. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Row"
+    android:background="@null"
+    android:clickable="false"
+    android:focusable="false">
+
+    <LinearLayout style="@style/RowText">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/RowTitle" />
+
+        <TextView
+            android:id="@+id/summary"
+            style="@style/RowSummary"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/value"
+        style="@style/Badge"
+        android:layout_marginStart="12dp" />
+
+    <ImageView
+        android:id="@+id/trailing"
+        style="@style/RowChevron"
+        android:visibility="gone"
+        app:tint="?attr/colorOnSurfaceVariant" />
+</LinearLayout>

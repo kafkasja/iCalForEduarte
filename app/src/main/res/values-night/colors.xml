@@ -11,4 +11,10 @@
     <color name="state_warning">#FFD54F</color>
     <color name="state_error">#EF9A9A</color>
     <color name="state_idle">#9E9E9E</color>
+
+    <color name="presence_warning_text">#FFD54F</color>
+    <color name="presence_good_container">#1E4620</color>
+    <color name="presence_on_good_container">#A5D6A7</color>
+    <color name="presence_warning_container">#4A3B00</color>
+    <color name="presence_on_warning_container">#FFE08A</color>
 </resources>

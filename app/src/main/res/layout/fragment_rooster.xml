@@ -103,7 +103,7 @@
             android:layout_height="wrap_content"
             app:dividerColor="?attr/colorOutlineVariant" />
 
-        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        <dev.eduartesync.ui.rooster.DirectionalSwipeRefreshLayout
             android:id="@+id/refresh"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -112,6 +112,6 @@
                 android:id="@+id/pager"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
-        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </dev.eduartesync.ui.rooster.DirectionalSwipeRefreshLayout>
     </LinearLayout>
 </LinearLayout>

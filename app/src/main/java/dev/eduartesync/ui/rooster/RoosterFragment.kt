@@ -109,6 +109,11 @@ class RoosterFragment : Fragment(R.layout.fragment_rooster) {
                 selected = days[position]
                 showWeek()
             }
+
+            // While a day is being swiped, a downward drift must not start a pull-to-refresh.
+            override fun onPageScrollStateChanged(state: Int) {
+                refresh.isEnabled = state == ViewPager2.SCROLL_STATE_IDLE
+            }
         })
 
         refresh = view.findViewById(R.id.refresh)

@@ -48,5 +48,33 @@
         <receiver
             android:name=".sync.IgnoreChangesReceiver"
             android:exported="false" />
+
+        <!-- Home screen widget with the upcoming lessons -->
+        <receiver
+            android:name=".widget.LessonWidget"
+            android:exported="false"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/lesson_widget_info" />
+        </receiver>
+
+        <!-- Rows of the widget's lesson list; only the home screen may bind to it -->
+        <service
+            android:name=".widget.LessonRowsService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <!-- Tapped widget row: opens the lesson in the calendar app, no UI of its own -->
+        <activity
+            android:name=".widget.OpenLessonActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
     </application>
 </manifest>

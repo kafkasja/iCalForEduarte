@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lessons widget, light. values-night/ has dark; the -v31 folders follow the wallpaper colors. -->
+    <color name="widget_bg">#FFF7F9FC</color>
+    <color name="widget_text">#FF1B1B1F</color>
+    <color name="widget_text_secondary">#FF5F6368</color>
+    <color name="widget_now_bg">#FFE1ECFA</color>
+    <color name="widget_accent">#FF1E88E5</color>
+</resources>

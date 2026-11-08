@@ -99,6 +99,7 @@ class SettingsActivity : Activity() {
             confirm("Clear calendar?", "Removes all lessons this app added to your calendar. Your other calendars are not touched.") {
                 val removed = CalendarWriter(this).deleteCalendar() > 0
                 settings.syncedUntil = null
+                dev.eduartesync.widget.LessonWidget.refresh(this)
                 toast(if (removed) "Calendar cleared. Tap Sync now to get it back." else "There was nothing to clear.")
             }
         }

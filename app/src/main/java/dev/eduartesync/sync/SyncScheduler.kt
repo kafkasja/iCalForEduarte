@@ -45,13 +45,15 @@ object SyncScheduler {
     /**
      * Sync now (app opened, pulled to refresh, widget button). KEEP: asking twice doesn't start
      * two syncs. [quiet]: the app is open and shows the result itself, so no toast.
+     * [onOpen]: only because the app was opened, so it is skipped when another sync finished
+     * moments before it got its turn (see [SyncWorker]).
      */
-    fun syncNow(context: Context, quiet: Boolean = false) {
+    fun syncNow(context: Context, quiet: Boolean = false, onOpen: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .setConstraints(needsNetwork)
             // Start right away, also when Android is saving battery for background apps.
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-            .setInputData(workDataOf(SyncWorker.KEY_MANUAL to true, SyncWorker.KEY_QUIET to quiet))
+            .setInputData(workDataOf(SyncWorker.KEY_MANUAL to true, SyncWorker.KEY_QUIET to quiet, SyncWorker.KEY_ON_OPEN to onOpen))
             .build()
         WorkManager.getInstance(context)
             .enqueueUniqueWork(MANUAL_WORK, ExistingWorkPolicy.KEEP, request)

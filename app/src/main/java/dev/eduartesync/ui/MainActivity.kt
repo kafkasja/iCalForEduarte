@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         if (!SessionManager.isLoggedIn(this) || !CalendarWriter.hasPermission(this)) return
         val settings = AppSettings(this)
         if (SyncStatus.shouldSyncOnOpen(settings.lastSyncAt, settings.lastSyncResult, System.currentTimeMillis())) {
-            SyncScheduler.syncNow(this, quiet = true)
+            SyncScheduler.syncNow(this, quiet = true, onOpen = true)
         }
     }
 

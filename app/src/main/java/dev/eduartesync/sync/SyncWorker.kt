@@ -16,6 +16,7 @@ import dev.eduartesync.model.Lesson
 import dev.eduartesync.source.EduarteSource
 import dev.eduartesync.source.SessionExpiredException
 import dev.eduartesync.settings.AppSettings
+import dev.eduartesync.ui.SyncStatus
 import dev.eduartesync.source.mergeConsecutive
 import dev.eduartesync.source.AgendaFormatException
 import dev.eduartesync.source.SignInPageException
@@ -44,6 +45,15 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     override suspend fun getForegroundInfo(): ForegroundInfo = Notifier.syncingForegroundInfo(applicationContext)
 
     private suspend fun sync(): Result {
+        // A sync that just worked makes an automatic one unnecessary. That happens after logging
+        // in: the login's sync, the one for opening the app and the background sync (which runs
+        // once right away when it is first scheduled) all queue up behind each other.
+        val automatic = !manual || inputData.getBoolean(KEY_ON_OPEN, false)
+        val last = AppSettings(applicationContext)
+        if (automatic && !SyncStatus.shouldSyncOnOpen(last.lastSyncAt, last.lastSyncResult, System.currentTimeMillis())) {
+            Log.i(TAG, "Skipped: synced moments ago")
+            return Result.success()
+        }
         val context = applicationContext
         if (!SessionManager.isLoggedIn(context)) {
             Notifier.loginRequired(context)
@@ -165,6 +175,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     companion object {
         const val KEY_MANUAL = "manual"
         const val KEY_QUIET = "quiet"
+        const val KEY_ON_OPEN = "on_open"
         private val syncLock = Mutex()
         private const val TAG = "EduarteSync"
         private const val MAX_RETRIES = 3

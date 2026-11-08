@@ -14,6 +14,12 @@ internal object PortalPages {
     const val PROGRAMMES = "studie/opleiding"
     const val WORK_LIST = "werklijst"
     const val ATTENDANCE = "presentie/presentie.overzicht"
+    const val PRESENCE_CHARTS = "presentie/presentie"
+    const val ABSENCE_CHARTS = "presentie/absentie"
+    const val DOSSIER = "studie/dossier"
+    const val DOCUMENTS = "studie/documenten"
+    const val SUBJECTS = "studie/archief"
+    const val GROUPS = "studie/groepen"
 
     /** How long to wait for parts of a page that the portal loads in the background. */
     const val CONTENT_TIMEOUT_MS = 20_000L
